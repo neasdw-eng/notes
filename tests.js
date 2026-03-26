@@ -324,11 +324,11 @@ async function runE2ETests() {
     searchBox.dispatchEvent(new Event('input', { bubbles: true }));
   });
 
-  await test('Theme switch to dark', function() {
+  await test('Theme switch to Star Trek TNG', function() {
     var select = iframe.contentDocument.getElementById('theme-select');
-    select.value = 'dark';
+    select.value = 'startrek';
     select.dispatchEvent(new Event('change', { bubbles: true }));
-    assertEqual(iframe.contentDocument.querySelector('.app').dataset.theme, 'dark', 'Theme should be dark');
+    assertEqual(iframe.contentDocument.querySelector('.app').dataset.theme, 'startrek', 'Theme should be startrek');
   });
 
   await test('Theme switch to Deus Ex', function() {
@@ -560,17 +560,15 @@ async function runDeusExTests() {
     assert(beforeBg.indexOf('radial-gradient') !== -1, 'Should have CRT vignette: ' + beforeBg);
   });
 
-  // Switch back to light and verify clean transition
-  select = doc.getElementById('theme-select');
-  select.value = 'light';
-  select.dispatchEvent(new Event('change', { bubbles: true }));
+  // Switch away from DX and verify clean transition
+  doc.querySelector('.app').dataset.theme = 'light';
   await wait(100);
 
-  await test('DX: Switching from DX to light removes DX styles', function() {
-    assertEqual(doc.querySelector('.app').dataset.theme, 'light', 'Should be light theme');
+  await test('DX: Switching from DX removes DX styles', function() {
+    assertEqual(doc.querySelector('.app').dataset.theme, 'light', 'Should be non-DX theme');
     var titleRow = doc.querySelector('.sidebar-title-row');
-    var bg = window.getComputedStyle(titleRow).backgroundImage;
-    assertEqual(bg, 'none', 'Light theme title row should have no gradient');
+    var bg = iframe.contentWindow.getComputedStyle(titleRow).backgroundImage;
+    assertEqual(bg, 'none', 'Non-DX theme title row should have no gradient');
   });
 
   // Cleanup
@@ -892,10 +890,11 @@ async function runReflectionE2ETests() {
 
   var doc = iframe.contentDocument;
 
-  await test('Reflect button is hidden in light theme', function() {
-    assertEqual(doc.querySelector('.app').dataset.theme, 'light', 'Should start in light theme');
+  await test('Reflect button is hidden in non-themed mode', function() {
+    // Force light theme via data attribute (option hidden from dropdown)
+    doc.querySelector('.app').dataset.theme = 'light';
     var btn = doc.getElementById('btn-reflection');
-    var display = window.getComputedStyle(btn).display;
+    var display = iframe.contentWindow.getComputedStyle(btn).display;
     assertEqual(display, 'none', 'Reflect button should be hidden in light theme');
   });
 
@@ -914,11 +913,10 @@ async function runReflectionE2ETests() {
   });
 
   await test('Reflect button hidden in dark theme', function() {
-    var select = doc.getElementById('theme-select');
-    select.value = 'dark';
-    select.dispatchEvent(new Event('change', { bubbles: true }));
+    // Force dark theme via data attribute (option hidden from dropdown)
+    doc.querySelector('.app').dataset.theme = 'dark';
     var btn = doc.getElementById('btn-reflection');
-    var display = window.getComputedStyle(btn).display;
+    var display = iframe.contentWindow.getComputedStyle(btn).display;
     assertEqual(display, 'none', 'Reflect button should be hidden in dark theme');
   });
 
@@ -983,9 +981,7 @@ async function runReflectionE2ETests() {
   });
 
   // Cleanup
-  var select = doc.getElementById('theme-select');
-  select.value = 'light';
-  select.dispatchEvent(new Event('change', { bubbles: true }));
+  doc.querySelector('.app').dataset.theme = 'deusex';
 }
 
 // ========== NEW THEMES TESTS ==========
@@ -1011,12 +1007,10 @@ async function runNewThemeTests() {
     var sel = doc.getElementById('theme-select');
     var opts = [];
     for (var i = 0; i < sel.options.length; i++) opts.push(sel.options[i].value);
-    assertIncludes(opts.join(','), 'light', 'Should have light');
-    assertIncludes(opts.join(','), 'dark', 'Should have dark');
     assertIncludes(opts.join(','), 'deusex', 'Should have deusex');
     assertIncludes(opts.join(','), 'startrek', 'Should have startrek');
     assertIncludes(opts.join(','), 'peanuts', 'Should have peanuts');
-    assert(sel.options.length >= 5, 'Should have at least 5 options');
+    assert(sel.options.length >= 3, 'Should have at least 3 options');
   });
 
   // Test each theme applies correctly
@@ -1094,6 +1088,49 @@ async function runNewThemeTests() {
     assertEqual(btn.textContent, 'Gang', 'Peanuts should show Gang button');
   });
 
+  await test('Star Trek textarea renders above starfield background', async function() {
+    var sel = doc.getElementById('theme-select');
+    sel.value = 'startrek';
+    sel.dispatchEvent(new Event('change', { bubbles: true }));
+
+    // Create a note so the textarea appears
+    doc.getElementById('btn-new').click();
+    await new Promise(function(r) { setTimeout(r, 200); });
+
+    var textarea = doc.querySelector('.editor-textarea');
+    assert(textarea !== null, 'Textarea should exist');
+
+    var tStyle = win.getComputedStyle(textarea);
+    // Background must be transparent so starfield shows through
+    var bg = tStyle.backgroundColor;
+    assert(
+      bg === 'rgba(0, 0, 0, 0)' || bg === 'transparent',
+      'TNG textarea bg should be transparent, got: ' + bg
+    );
+    // z-index must be >= 10 to be above starfield canvas (z-index: 5)
+    var zIndex = parseInt(tStyle.zIndex, 10);
+    assert(zIndex >= 10, 'TNG textarea z-index should be >= 10, got: ' + zIndex);
+    // Position must be relative/absolute for z-index to work
+    var pos = tStyle.position;
+    assert(pos === 'relative' || pos === 'absolute', 'TNG textarea position should be relative or absolute, got: ' + pos);
+    // Text color should be visible (not black on black)
+    var color = tStyle.color;
+    assert(color !== 'rgb(0, 0, 0)', 'TNG textarea text color should not be black, got: ' + color);
+  });
+
+  await test('Star Trek empty state renders above starfield', async function() {
+    // Delete the note we just created to see empty state
+    doc.getElementById('btn-delete').click();
+    await new Promise(function(r) { setTimeout(r, 200); });
+
+    var empty = doc.querySelector('.empty-state');
+    if (empty) {
+      var eStyle = win.getComputedStyle(empty);
+      var zIndex = parseInt(eStyle.zIndex, 10);
+      assert(zIndex >= 10, 'TNG empty state z-index should be >= 10, got: ' + zIndex);
+    }
+  });
+
   await test('Star Trek TNG shows Engage button label', function() {
     var sel = doc.getElementById('theme-select');
     sel.value = 'startrek';
@@ -1133,9 +1170,7 @@ async function runNewThemeTests() {
   });
 
   // Cleanup
-  var select = doc.getElementById('theme-select');
-  select.value = 'light';
-  select.dispatchEvent(new Event('change', { bubbles: true }));
+  doc.querySelector('.app').dataset.theme = 'deusex';
 }
 
 // ========== RUN ALL ==========

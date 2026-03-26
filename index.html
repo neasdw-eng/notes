@@ -1114,7 +1114,18 @@ html, body {
   font-size: 14px;
   line-height: 1.8;
   letter-spacing: 0.3px;
+  background: transparent;
+  position: relative;
+  z-index: 10;
+}
+
+[data-theme="startrek"] .editor-container {
   background: #000000;
+}
+
+[data-theme="startrek"] .empty-state {
+  position: relative;
+  z-index: 10;
 }
 
 [data-theme="startrek"] .note-title-display { font-family: var(--font-mono); text-transform: uppercase; letter-spacing: 2px; font-size: 11px; color: #ff9966; }
@@ -1791,8 +1802,8 @@ html, body {
       </div>
       <div class="editor-toolbar-right">
         <select class="theme-select" id="theme-select" title="Theme">
-          <option value="light">Light</option>
-          <option value="dark">Dark</option>
+          <!--<option value="light">Light</option>-->
+          <!--<option value="dark">Dark</option>-->
           <option value="deusex">Deus Ex</option>
           <!--<option value="masseffect">Mass Effect</option>-->
           <option value="startrek">Star Trek TNG</option>
