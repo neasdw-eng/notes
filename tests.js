@@ -969,7 +969,7 @@ async function runReflectionE2ETests() {
   });
 
   await test('Reflect button visible but style dropdown hidden for themed modes', function() {
-    var themes = ['masseffect', 'startrek', 'twinpeaks', 'peanuts', 'warcraft'];
+    var themes = ['deusex', 'startrek', 'peanuts'];
     for (var i = 0; i < themes.length; i++) {
       var sel = doc.getElementById('theme-select');
       sel.value = themes[i];
@@ -999,29 +999,24 @@ async function runNewThemeTests() {
   var doc = iframe.contentDocument;
   var win = iframe.contentWindow;
 
-  var themes = ['masseffect', 'startrek', 'twinpeaks', 'peanuts', 'warcraft'];
+  // Only test currently visible themes
+  var themes = ['startrek', 'peanuts'];
   var themeLabels = {
-    masseffect: 'Mass Effect',
     startrek: 'Star Trek TNG',
-    twinpeaks: 'Twin Peaks',
-    peanuts: 'Peanuts',
-    warcraft: 'World of Warcraft'
+    peanuts: 'Peanuts'
   };
 
-  // Test: all theme options present in dropdown
-  await test('Theme select has all 8 options', function() {
+  // Test: visible theme options present in dropdown
+  await test('Theme select has visible options', function() {
     var sel = doc.getElementById('theme-select');
     var opts = [];
     for (var i = 0; i < sel.options.length; i++) opts.push(sel.options[i].value);
     assertIncludes(opts.join(','), 'light', 'Should have light');
     assertIncludes(opts.join(','), 'dark', 'Should have dark');
     assertIncludes(opts.join(','), 'deusex', 'Should have deusex');
-    assertIncludes(opts.join(','), 'masseffect', 'Should have masseffect');
     assertIncludes(opts.join(','), 'startrek', 'Should have startrek');
-    assertIncludes(opts.join(','), 'twinpeaks', 'Should have twinpeaks');
     assertIncludes(opts.join(','), 'peanuts', 'Should have peanuts');
-    assertIncludes(opts.join(','), 'warcraft', 'Should have warcraft');
-    assertEqual(sel.options.length, 8, 'Should have exactly 8 options');
+    assert(sel.options.length >= 5, 'Should have at least 5 options');
   });
 
   // Test each theme applies correctly
@@ -1068,11 +1063,8 @@ async function runNewThemeTests() {
 
   // Test: reflect-style dropdown updates per theme
   var expectedSubstyles = {
-    masseffect: ['Paragon', 'Renegade'],
-    startrek: ['LCARS', 'Holodeck'],
-    twinpeaks: ['Black Lodge', 'The Owls'],
-    peanuts: ['Hangout', 'Dance'],
-    warcraft: ['Alliance', 'Horde']
+    startrek: ['Warp', 'Drift'],
+    peanuts: ['Hangout', 'Dance']
   };
 
   for (var s = 0; s < themes.length; s++) {
@@ -1100,6 +1092,14 @@ async function runNewThemeTests() {
     sel.dispatchEvent(new Event('change', { bubbles: true }));
     var btn = doc.getElementById('btn-reflection');
     assertEqual(btn.textContent, 'Gang', 'Peanuts should show Gang button');
+  });
+
+  await test('Star Trek TNG shows Engage button label', function() {
+    var sel = doc.getElementById('theme-select');
+    sel.value = 'startrek';
+    sel.dispatchEvent(new Event('change', { bubbles: true }));
+    var btn = doc.getElementById('btn-reflection');
+    assertEqual(btn.textContent, 'Engage', 'TNG should show Engage button');
   });
 
   await test('Non-Peanuts themes show Reflect button label', function() {

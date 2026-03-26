@@ -1794,11 +1794,11 @@ html, body {
           <option value="light">Light</option>
           <option value="dark">Dark</option>
           <option value="deusex">Deus Ex</option>
-          <option value="masseffect">Mass Effect</option>
+          <!--<option value="masseffect">Mass Effect</option>-->
           <option value="startrek">Star Trek TNG</option>
-          <option value="twinpeaks">Twin Peaks</option>
+          <!--<option value="twinpeaks">Twin Peaks</option>-->
           <option value="peanuts">Peanuts</option>
-          <option value="warcraft">Warcraft</option>
+          <!--<option value="warcraft">Warcraft</option>-->
         </select>
         <select class="theme-select" id="reflect-style" title="Reflection Style" style="display:none">
           <option value="terminal">Terminal</option>
@@ -1895,11 +1895,12 @@ class NotesApp {
         defaultOpacity: 0.30, blendMode: 'screen'
       },
       startrek: {
+        useStarfield: true,
         substyles: [
-          { name: 'lcars', label: 'LCARS', processorStyle: 'lcars', renderStyle: 'lcars', colorMode: 'lcars' },
-          { name: 'holodeck', label: 'Holodeck', processorStyle: 'holodeck', renderStyle: 'holodeck', colorMode: 'holodeck' }
+          { name: 'warp', label: 'Warp' },
+          { name: 'drift', label: 'Drift' }
         ],
-        defaultOpacity: 0.25, blendMode: 'screen'
+        defaultOpacity: 0, blendMode: 'screen'
       },
       twinpeaks: {
         substyles: [
@@ -1963,12 +1964,9 @@ class NotesApp {
     this.els.reflectStyle.addEventListener('change', (e) => {
       const theme = this.els.app.dataset.theme;
       const config = this.themeReflectionConfig[theme];
-      if (config && config.useCharacterAnimation) {
-        // Character animation reads style dynamically, no restart needed
-        return;
-      }
+      // Character animation and starfield read style dynamically, no restart needed
+      if (config && (config.useCharacterAnimation || config.useStarfield)) return;
       this.setReflectionStyle(e.target.value);
-      // If reflection is active, restart with new style
       if (this.reflectionActive) {
         this.stopReflection();
         this.startReflection();
@@ -2011,10 +2009,11 @@ class NotesApp {
     // Stop effects when switching themes
     if (prevTheme !== theme) {
       if (this.reflectionActive) {
-        // Check if previous theme used character animation
         const prevConfig = this.themeReflectionConfig[prevTheme];
         if (prevConfig && prevConfig.useCharacterAnimation) {
           this.stopCharacterAnimation();
+        } else if (prevConfig && prevConfig.useStarfield) {
+          this.stopStarfield();
         } else {
           this.stopReflection();
         }
@@ -2035,6 +2034,8 @@ class NotesApp {
       if (wasReflecting) {
         if (config.useCharacterAnimation) {
           this.startCharacterAnimation();
+        } else if (config.useStarfield) {
+          this.startStarfield();
         } else {
           this.startReflection();
         }
@@ -2048,9 +2049,11 @@ class NotesApp {
     const config = this.themeReflectionConfig[theme];
     const hasReflection = !!config;
     this.els.btnReflection.style.display = hasReflection ? '' : 'none';
-    // Update button label for character animation themes
+    // Update button label per theme
     if (config && config.useCharacterAnimation) {
       this.els.btnReflection.textContent = 'Gang';
+    } else if (config && config.useStarfield) {
+      this.els.btnReflection.textContent = 'Engage';
     } else {
       this.els.btnReflection.textContent = 'Reflect';
     }
@@ -2099,12 +2102,14 @@ class NotesApp {
     const config = this.themeReflectionConfig[theme];
 
     if (config && config.useCharacterAnimation) {
-      // Peanuts: toggle character animation instead of webcam
-      if (this.reflectionActive) {
-        this.stopCharacterAnimation();
-      } else {
-        this.startCharacterAnimation();
-      }
+      if (this.reflectionActive) { this.stopCharacterAnimation(); }
+      else { this.startCharacterAnimation(); }
+      return;
+    }
+
+    if (config && config.useStarfield) {
+      if (this.reflectionActive) { this.stopStarfield(); }
+      else { this.startStarfield(); }
       return;
     }
 
@@ -2459,6 +2464,188 @@ class NotesApp {
       this._peanutsCanvas.parentNode.removeChild(this._peanutsCanvas);
     }
     this._peanutsCanvas = null;
+    this.reflectionActive = false;
+    this.els.btnReflection.classList.remove('active');
+    this.els.reflectStyle.style.display = 'none';
+  }
+
+  // ========== TNG STARFIELD ==========
+  startStarfield() {
+    this.stopStarfield();
+    const container = this.els.editorContainer;
+    if (!container) return;
+
+    const canvas = document.createElement('canvas');
+    canvas.className = 'tng-starfield';
+    canvas.style.cssText = 'position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:5;';
+    container.style.position = 'relative';
+    container.appendChild(canvas);
+    this._starCanvas = canvas;
+
+    const ctx = canvas.getContext('2d');
+    const self = this;
+
+    // Create star field
+    const stars = [];
+    const numStars = 200;
+
+    const resize = () => {
+      const rect = container.getBoundingClientRect();
+      canvas.width = rect.width;
+      canvas.height = rect.height;
+    };
+    resize();
+    this._starResize = resize;
+    window.addEventListener('resize', resize);
+
+    // Initialize stars
+    for (let i = 0; i < numStars; i++) {
+      stars.push({
+        x: Math.random() * 2 - 1,       // -1 to 1 from center
+        y: Math.random() * 2 - 1,
+        z: Math.random(),                 // depth 0 (far) to 1 (near)
+        brightness: 0.3 + Math.random() * 0.7,
+        twinklePhase: Math.random() * Math.PI * 2,
+        twinkleSpeed: 0.5 + Math.random() * 2,
+        size: 0.5 + Math.random() * 1.5,
+        // Subtle color variation — blue/white stars
+        hue: 200 + Math.random() * 40,
+        sat: Math.random() * 30
+      });
+    }
+
+    // Occasional nebula clouds
+    const nebulae = [];
+    for (let i = 0; i < 4; i++) {
+      nebulae.push({
+        x: Math.random() * 2 - 1,
+        y: Math.random() * 2 - 1,
+        radius: 60 + Math.random() * 100,
+        hue: 200 + Math.random() * 80,
+        opacity: 0.01 + Math.random() * 0.02,
+        driftX: (Math.random() - 0.5) * 0.0001,
+        driftY: (Math.random() - 0.5) * 0.0001
+      });
+    }
+
+    let time = 0;
+    const draw = () => {
+      if (!this._starCanvas) return;
+      const w = canvas.width, h = canvas.height;
+      const cx = w / 2, cy = h / 2;
+      const isWarp = (self.els.reflectStyle.value === 'warp');
+
+      // Deep space background
+      ctx.fillStyle = '#000000';
+      ctx.fillRect(0, 0, w, h);
+
+      // Subtle deep-space gradient
+      const bgGrad = ctx.createRadialGradient(cx, cy, 0, cx, cy, Math.max(w, h) * 0.7);
+      bgGrad.addColorStop(0, 'rgba(10, 15, 30, 0.8)');
+      bgGrad.addColorStop(0.5, 'rgba(5, 5, 15, 0.5)');
+      bgGrad.addColorStop(1, 'rgba(0, 0, 5, 0)');
+      ctx.fillStyle = bgGrad;
+      ctx.fillRect(0, 0, w, h);
+
+      time += 0.016;
+
+      // Draw nebulae
+      nebulae.forEach(n => {
+        n.x += n.driftX;
+        n.y += n.driftY;
+        if (n.x > 1.5) n.x = -1.5;
+        if (n.y > 1.5) n.y = -1.5;
+        const nx = cx + n.x * cx;
+        const ny = cy + n.y * cy;
+        const ng = ctx.createRadialGradient(nx, ny, 0, nx, ny, n.radius);
+        const pulseOp = n.opacity + Math.sin(time * 0.3) * 0.005;
+        ng.addColorStop(0, 'hsla(' + n.hue + ', 60%, 40%, ' + pulseOp + ')');
+        ng.addColorStop(0.5, 'hsla(' + n.hue + ', 40%, 20%, ' + (pulseOp * 0.5) + ')');
+        ng.addColorStop(1, 'transparent');
+        ctx.fillStyle = ng;
+        ctx.fillRect(nx - n.radius, ny - n.radius, n.radius * 2, n.radius * 2);
+      });
+
+      // Draw stars
+      stars.forEach(s => {
+        if (isWarp) {
+          // Warp speed: stars streak toward edges from center
+          s.z += 0.008;
+          if (s.z > 1) {
+            s.z = 0.01;
+            s.x = Math.random() * 2 - 1;
+            s.y = Math.random() * 2 - 1;
+          }
+          const scale = 1 / (1 - s.z * 0.9);
+          const sx = cx + s.x * cx * scale;
+          const sy = cy + s.y * cy * scale;
+          const prevScale = 1 / (1 - (s.z - 0.008) * 0.9);
+          const px = cx + s.x * cx * prevScale;
+          const py = cy + s.y * cy * prevScale;
+
+          if (sx < -10 || sx > w + 10 || sy < -10 || sy > h + 10) return;
+
+          // Streak line
+          const streakLen = Math.min(s.z * 40, 30);
+          const alpha = Math.min(s.z * 1.5, 1) * s.brightness;
+          ctx.strokeStyle = 'hsla(' + s.hue + ', ' + s.sat + '%, 90%, ' + alpha + ')';
+          ctx.lineWidth = s.size * s.z * 2;
+          ctx.beginPath();
+          ctx.moveTo(px, py);
+          ctx.lineTo(sx, sy);
+          ctx.stroke();
+        } else {
+          // Drift: gentle parallax movement
+          s.x += 0.0002 * (1 + s.z);
+          if (s.x > 1.2) s.x = -1.2;
+
+          const sx = cx + s.x * cx;
+          const sy = cy + s.y * cy;
+          if (sx < -5 || sx > w + 5 || sy < -5 || sy > h + 5) return;
+
+          // Twinkle
+          const twinkle = 0.5 + 0.5 * Math.sin(time * s.twinkleSpeed + s.twinklePhase);
+          const alpha = s.brightness * twinkle;
+          const r = s.size * (0.8 + s.z * 0.5);
+
+          // Glow
+          const glow = ctx.createRadialGradient(sx, sy, 0, sx, sy, r * 3);
+          glow.addColorStop(0, 'hsla(' + s.hue + ', ' + s.sat + '%, 95%, ' + (alpha * 0.8) + ')');
+          glow.addColorStop(0.3, 'hsla(' + s.hue + ', ' + s.sat + '%, 80%, ' + (alpha * 0.3) + ')');
+          glow.addColorStop(1, 'transparent');
+          ctx.fillStyle = glow;
+          ctx.fillRect(sx - r * 3, sy - r * 3, r * 6, r * 6);
+
+          // Core
+          ctx.fillStyle = 'hsla(' + s.hue + ', ' + s.sat + '%, 100%, ' + alpha + ')';
+          ctx.beginPath();
+          ctx.arc(sx, sy, r, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      });
+
+      this._starAnimId = requestAnimationFrame(draw);
+    };
+    draw();
+
+    this.reflectionActive = true;
+    this.els.btnReflection.classList.add('active');
+    this.els.reflectStyle.style.display = '';
+  }
+
+  stopStarfield() {
+    if (this._starAnimId) {
+      cancelAnimationFrame(this._starAnimId);
+      this._starAnimId = null;
+    }
+    if (this._starResize) {
+      window.removeEventListener('resize', this._starResize);
+      this._starResize = null;
+    }
+    if (this._starCanvas && this._starCanvas.parentNode) {
+      this._starCanvas.parentNode.removeChild(this._starCanvas);
+    }
+    this._starCanvas = null;
     this.reflectionActive = false;
     this.els.btnReflection.classList.remove('active');
     this.els.reflectStyle.style.display = 'none';
