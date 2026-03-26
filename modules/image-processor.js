@@ -283,6 +283,34 @@ var ImageProcessor = (function() {
 
   var currentStyle = 'terminal';
 
+  // Pre-allocated buffers for frame processing (avoid GC pressure)
+  var _bufW = 0, _bufH = 0;
+  var _grayBuf = null;
+  var _blurBuf1 = null;
+  var _blurBuf2 = null;
+  var _edgeBuf = null;
+  var _brightBuf = null;
+  var _sharpenBuf = null;
+  var _contrastBuf = null;
+  var _posterBuf = null;
+  var _ditherBuf = null;
+
+  function _ensureBuffers(w, h) {
+    if (_bufW === w && _bufH === h) return;
+    var size = w * h;
+    _bufW = w;
+    _bufH = h;
+    _grayBuf = new Float32Array(size);
+    _blurBuf1 = new Float32Array(size);
+    _blurBuf2 = new Float32Array(size);
+    _edgeBuf = new Float32Array(size);
+    _brightBuf = new Float32Array(size);
+    _sharpenBuf = new Float32Array(size);
+    _contrastBuf = new Float32Array(size);
+    _posterBuf = new Float32Array(size);
+    _ditherBuf = new Float32Array(size);
+  }
+
   function setStyle(name) {
     if (STYLES[name]) {
       currentStyle = name;
@@ -301,60 +329,156 @@ var ImageProcessor = (function() {
    * Process a full frame into Deus Ex style output.
    * Returns an object with edge data and brightness for the renderer.
    */
+  /**
+   * Fast in-place versions of processing functions that reuse pre-allocated buffers
+   */
+  function _toGrayscaleInto(imageData, out) {
+    var data = imageData.data;
+    var len = imageData.width * imageData.height;
+    for (var i = 0; i < len; i++) {
+      var idx = i * 4;
+      out[i] = data[idx] * 0.299 + data[idx+1] * 0.587 + data[idx+2] * 0.114;
+    }
+  }
+
+  function _gaussianBlurInto(gray, w, h, out) {
+    var kernel = [1, 2, 1, 2, 4, 2, 1, 2, 1];
+    // Zero edges
+    for (var e = 0; e < w; e++) { out[e] = 0; out[(h-1)*w+e] = 0; }
+    for (var e2 = 0; e2 < h; e2++) { out[e2*w] = 0; out[e2*w+w-1] = 0; }
+    for (var y = 1; y < h - 1; y++) {
+      for (var x = 1; x < w - 1; x++) {
+        var sum = 0;
+        var ki = 0;
+        for (var ky = -1; ky <= 1; ky++) {
+          for (var kx = -1; kx <= 1; kx++) {
+            sum += gray[(y + ky) * w + (x + kx)] * kernel[ki++];
+          }
+        }
+        out[y * w + x] = sum * 0.0625; // /16
+      }
+    }
+  }
+
+  function _sharpenInto(gray, w, h, amount, blurBuf, out) {
+    _gaussianBlurInto(gray, w, h, blurBuf);
+    for (var i = 0, len = w * h; i < len; i++) {
+      out[i] = Math.max(0, Math.min(255, gray[i] + amount * (gray[i] - blurBuf[i])));
+    }
+  }
+
+  function _sobelEdgesInto(sharpened, w, h, blurBuf, out) {
+    _gaussianBlurInto(sharpened, w, h, blurBuf);
+    var sobelX = [-1, 0, 1, -2, 0, 2, -1, 0, 1];
+    var sobelY = [-1, -2, -1, 0, 0, 0, 1, 2, 1];
+    // Zero edges
+    for (var e = 0; e < w; e++) { out[e] = 0; out[(h-1)*w+e] = 0; }
+    for (var e2 = 0; e2 < h; e2++) { out[e2*w] = 0; out[e2*w+w-1] = 0; }
+    for (var y = 1; y < h - 1; y++) {
+      for (var x = 1; x < w - 1; x++) {
+        var gx = 0, gy = 0;
+        var ki = 0;
+        for (var ky = -1; ky <= 1; ky++) {
+          for (var kx = -1; kx <= 1; kx++) {
+            var val = blurBuf[(y + ky) * w + (x + kx)];
+            gx += val * sobelX[ki];
+            gy += val * sobelY[ki];
+            ki++;
+          }
+        }
+        out[y * w + x] = Math.sqrt(gx * gx + gy * gy);
+      }
+    }
+  }
+
   function processFrame(imageData, styleName) {
     var style = STYLES[styleName || currentStyle] || STYLES.terminal;
     var w = imageData.width;
     var h = imageData.height;
-    var gray = toGrayscale(imageData);
+    var len = w * h;
 
-    // Sharpen to bring out facial detail
-    var sharpened = sharpen(gray, w, h, style.sharpenAmount);
+    _ensureBuffers(w, h);
 
-    // Edge detection on sharpened image
-    var edges = sobelEdges(sharpened, w, h);
+    // Grayscale into pre-allocated buffer
+    _toGrayscaleInto(imageData, _grayBuf);
 
-    // Brightness from sharpened source
-    var brightness = brightnessMap(sharpened, w, h);
+    // Sharpen (uses _blurBuf1 internally)
+    _sharpenInto(_grayBuf, w, h, style.sharpenAmount, _blurBuf1, _sharpenBuf);
 
-    // Gamma boost — pull detail out of shadows
-    for (var k = 0; k < brightness.length; k++) {
-      brightness[k] = Math.pow(brightness[k], style.gamma);
+    // Edge detection (uses _blurBuf2 internally)
+    _sobelEdgesInto(_sharpenBuf, w, h, _blurBuf2, _edgeBuf);
+
+    // Brightness map in-place into _brightBuf
+    var max = 0;
+    for (var i = 0; i < len; i++) {
+      if (_sharpenBuf[i] > max) max = _sharpenBuf[i];
+    }
+    if (max === 0) max = 1;
+    var invMax = 1 / max;
+    for (var j = 0; j < len; j++) {
+      _brightBuf[j] = _sharpenBuf[j] * invMax;
     }
 
-    // Adaptive contrast — re-normalize after gamma to use full range
+    // Gamma boost
+    var gamma = style.gamma;
+    for (var k = 0; k < len; k++) {
+      _brightBuf[k] = Math.pow(_brightBuf[k], gamma);
+    }
+
+    // Adaptive contrast — re-normalize
     var bMin = 1, bMax = 0;
-    for (var n = 0; n < brightness.length; n++) {
-      if (brightness[n] < bMin) bMin = brightness[n];
-      if (brightness[n] > bMax) bMax = brightness[n];
+    for (var n = 0; n < len; n++) {
+      var bv = _brightBuf[n];
+      if (bv < bMin) bMin = bv;
+      if (bv > bMax) bMax = bv;
     }
-    var bRange = bMax - bMin || 1;
-    for (var p = 0; p < brightness.length; p++) {
-      brightness[p] = (brightness[p] - bMin) / bRange;
+    var invRange = 1 / ((bMax - bMin) || 1);
+    for (var p = 0; p < len; p++) {
+      _brightBuf[p] = (_brightBuf[p] - bMin) * invRange;
     }
 
-    // Apply contrast
-    brightness = contrastEnhance(brightness, w, h, style.contrast);
+    // Contrast enhance in-place
+    var strength = style.contrast;
+    for (var c = 0; c < len; c++) {
+      var v = (_brightBuf[c] - 0.5) * strength + 0.5;
+      _brightBuf[c] = v < 0 ? 0 : (v > 1 ? 1 : v);
+    }
 
-    // Posterize
-    brightness = posterize(brightness, w, h, style.posterizeLevels);
+    // Posterize in-place
+    var levels = style.posterizeLevels;
+    for (var q = 0; q < len; q++) {
+      _brightBuf[q] = Math.round(_brightBuf[q] * levels) / levels;
+    }
 
     // Normalize edges to 0-1
     var maxEdge = 0;
-    for (var i = 0; i < edges.length; i++) {
-      if (edges[i] > maxEdge) maxEdge = edges[i];
+    for (var ei = 0; ei < len; ei++) {
+      if (_edgeBuf[ei] > maxEdge) maxEdge = _edgeBuf[ei];
     }
     if (maxEdge > 0) {
-      for (var j = 0; j < edges.length; j++) {
-        edges[j] = Math.min(edges[j] / maxEdge, 1.0);
+      var invEdge = 1 / maxEdge;
+      for (var ej = 0; ej < len; ej++) {
+        var ev = _edgeBuf[ej] * invEdge;
+        _edgeBuf[ej] = ev > 1 ? 1 : ev;
       }
     }
 
-    // Dither edges
-    var ditheredEdges = orderedDither(edges, w, h, style.edgeDitherLevels);
+    // Dither edges into _ditherBuf
+    var ditherLevels = style.edgeDitherLevels;
+    var bayer = [0,8,2,10,12,4,14,6,3,11,1,9,15,7,13,5];
+    var step = 1.0 / ditherLevels;
+    for (var dy = 0; dy < h; dy++) {
+      for (var dx = 0; dx < w; dx++) {
+        var didx = dy * w + dx;
+        var threshold = (bayer[(dy % 4) * 4 + (dx % 4)] + 0.5) * 0.0625; // /16
+        var dval = _edgeBuf[didx];
+        _ditherBuf[didx] = dval > threshold * step + (1 - step) * dval ? Math.min(dval * 1.5, 1.0) : dval * 0.3;
+      }
+    }
 
     return {
-      edges: ditheredEdges,
-      brightness: brightness,
+      edges: _ditherBuf,
+      brightness: _brightBuf,
       width: w,
       height: h
     };

@@ -693,6 +693,35 @@ async function runImageProcessorTests() {
     }
     assert(interiorMax < 0.5, 'Interior of uniform image should have low edge values: ' + interiorMax);
   });
+
+  await test('processFrame reuses buffers across calls (no crash)', function() {
+    // Call processFrame multiple times with same size — should reuse internal buffers
+    var img = fakeImageData(20, 20, function(x, y) {
+      var v = Math.floor((x / 20) * 255);
+      return [v, v, v, 255];
+    });
+    var result1 = ImageProcessor.processFrame(img, 'terminal');
+    var result2 = ImageProcessor.processFrame(img, 'polygon');
+    var result3 = ImageProcessor.processFrame(img, 'wireframe');
+    assertEqual(result1.width, 20, 'First call width');
+    assertEqual(result2.width, 20, 'Second call width');
+    assertEqual(result3.width, 20, 'Third call width');
+    assert(result1.edges.length === 400, 'Edges should have 400 values');
+    assert(result2.brightness.length === 400, 'Brightness should have 400 values');
+  });
+
+  await test('processFrame works with different sizes', function() {
+    // Switch from one size to another — should reallocate buffers
+    var img1 = fakeImageData(10, 10, function() { return [200, 200, 200, 255]; });
+    var img2 = fakeImageData(20, 15, function() { return [100, 100, 100, 255]; });
+    var r1 = ImageProcessor.processFrame(img1);
+    var r2 = ImageProcessor.processFrame(img2);
+    assertEqual(r1.width, 10, 'First size width');
+    assertEqual(r1.height, 10, 'First size height');
+    assertEqual(r2.width, 20, 'Second size width');
+    assertEqual(r2.height, 15, 'Second size height');
+    assertEqual(r2.edges.length, 300, 'Second edges length');
+  });
 }
 
 // ========== DX RENDERER UNIT TESTS ==========
@@ -929,6 +958,28 @@ async function runReflectionE2ETests() {
     assert(typeof r.destroy === 'function', 'Should have destroy');
     assert(typeof r.setOpacity === 'function', 'Should have setOpacity');
     assert(typeof r.setColorMode === 'function', 'Should have setColorMode');
+  });
+
+  await test('Reflect style dropdown hidden when reflection is off', function() {
+    var sel = doc.getElementById('theme-select');
+    sel.value = 'deusex';
+    sel.dispatchEvent(new Event('change', { bubbles: true }));
+    var rStyle = doc.getElementById('reflect-style');
+    assertEqual(rStyle.style.display, 'none', 'Style dropdown should be hidden when reflect is off');
+  });
+
+  await test('Reflect button visible but style dropdown hidden for themed modes', function() {
+    var themes = ['masseffect', 'startrek', 'twinpeaks', 'peanuts', 'warcraft'];
+    for (var i = 0; i < themes.length; i++) {
+      var sel = doc.getElementById('theme-select');
+      sel.value = themes[i];
+      sel.dispatchEvent(new Event('change', { bubbles: true }));
+      var btn = doc.getElementById('btn-reflection');
+      var rStyle = doc.getElementById('reflect-style');
+      var btnDisplay = iframe.contentWindow.getComputedStyle(btn).display;
+      assert(btnDisplay !== 'none', themes[i] + ' should show reflect button');
+      assertEqual(rStyle.style.display, 'none', themes[i] + ' style dropdown should be hidden when reflect is off');
+    }
   });
 
   // Cleanup

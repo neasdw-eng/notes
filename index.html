@@ -1992,10 +1992,11 @@ class NotesApp {
   // ========== THEME ==========
   setTheme(theme) {
     const prevTheme = this.els.app.dataset.theme;
+    const wasReflecting = this.reflectionActive;
     this.els.app.dataset.theme = theme;
     Storage.setTheme(theme);
 
-    // Stop reflection + effects if switching themes
+    // Stop effects when switching themes
     if (prevTheme !== theme) {
       if (this.reflectionActive) this.stopReflection();
       this.stopVisualFx();
@@ -2009,6 +2010,11 @@ class NotesApp {
     if (this.themeReflectionConfig[theme]) {
       this.startVisualFx(theme);
       this.startAudio(theme);
+
+      // Persist reflection state across theme switches
+      if (wasReflecting) {
+        this.startReflection();
+      }
     }
   }
 
@@ -2017,7 +2023,8 @@ class NotesApp {
     const theme = this.els.app.dataset.theme;
     const hasReflection = !!this.themeReflectionConfig[theme];
     this.els.btnReflection.style.display = hasReflection ? '' : 'none';
-    this.els.reflectStyle.style.display = hasReflection ? '' : 'none';
+    // Only show style dropdown when reflection is actually on
+    this.els.reflectStyle.style.display = (hasReflection && this.reflectionActive) ? '' : 'none';
   }
 
   updateReflectStyleDropdown() {
@@ -2096,6 +2103,7 @@ class NotesApp {
     WebcamModule.start().then(() => {
       this.reflectionActive = true;
       this.els.btnReflection.classList.add('active');
+      this.els.reflectStyle.style.display = '';
     }).catch((err) => {
       console.warn('Webcam access denied:', err.message);
       DXRenderer.destroy();
@@ -2107,6 +2115,7 @@ class NotesApp {
     DXRenderer.destroy();
     this.reflectionActive = false;
     this.els.btnReflection.classList.remove('active');
+    this.els.reflectStyle.style.display = 'none';
   }
 
   // ========== VISUAL EFFECTS ==========

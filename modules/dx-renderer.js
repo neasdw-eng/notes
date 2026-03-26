@@ -17,6 +17,8 @@ var DXRenderer = (function() {
   var renderWidth = 0;
   var renderHeight = 0;
   var renderStyle = 'terminal';
+  var cachedImgData = null;
+  var cachedStyleObj = null;
 
   var COLOR_PRESETS = {
     green:  { r: 40, g: 232, b: 160, edge: { r: 80, g: 255, b: 180 } },
@@ -165,14 +167,15 @@ var DXRenderer = (function() {
   function _resize() {
     if (!containerEl || !overlayCanvas) return;
     var rect = containerEl.getBoundingClientRect();
-    var rs = RENDER_STYLES[renderStyle] || RENDER_STYLES.terminal;
-    renderWidth = Math.floor(rect.width / rs.resDiv);
-    renderHeight = Math.floor(rect.height / rs.resDiv);
+    cachedStyleObj = RENDER_STYLES[renderStyle] || RENDER_STYLES.terminal;
+    renderWidth = Math.floor(rect.width / cachedStyleObj.resDiv);
+    renderHeight = Math.floor(rect.height / cachedStyleObj.resDiv);
     overlayCanvas.width = renderWidth;
     overlayCanvas.height = renderHeight;
     ctx = overlayCanvas.getContext('2d');
     if (ctx) {
       ctx.imageSmoothingEnabled = false;
+      cachedImgData = ctx.createImageData(renderWidth, renderHeight);
     }
   }
 
@@ -181,88 +184,91 @@ var DXRenderer = (function() {
    * @param {Object} processed - Output from ImageProcessor.processFrame()
    */
   function renderFrame(processed) {
-    if (!ctx || !isVisible || !processed) return;
+    if (!ctx || !isVisible || !processed || !cachedImgData) return;
 
     var colors = COLOR_PRESETS[colorMode] || COLOR_PRESETS.green;
+    var rs = cachedStyleObj || RENDER_STYLES.terminal;
     var srcW = processed.width;
     var srcH = processed.height;
     var edges = processed.edges;
     var brightness = processed.brightness;
+    var pixels = cachedImgData.data;
 
-    // Create output image data at render resolution
-    var imgData = ctx.createImageData(renderWidth, renderHeight);
-    var pixels = imgData.data;
+    // Pre-compute color * fill multiplier
+    var cr = colors.r, cg = colors.g, cb = colors.b;
+    var er = colors.edge.r, eg = colors.edge.g, eb = colors.edge.b;
+    var fillMul = rs.fillMul;
+    var darkCutoff = rs.darkCutoff;
+    var edgePow = rs.edgePow;
+    var edgeMul = rs.edgeMul;
+    var edgeThreshold = rs.edgeThreshold;
+    var alphaFill = rs.alphaFill;
+    var alphaEdge = rs.alphaEdge;
+    var isOutline = rs.edgeBlendMode === 'outline';
 
     // Scale factors
     var scaleX = srcW / renderWidth;
     var scaleY = srcH / renderHeight;
 
     for (var y = 0; y < renderHeight; y++) {
+      var scanMul = (y & 1) ? 1.0 : 0.88;
+      var srcY = (y * scaleY) | 0;
+      var rowOff = srcY * srcW;
+      var outRow = y * renderWidth;
+
       for (var x = 0; x < renderWidth; x++) {
-        // Sample from processed data
-        var srcX = Math.floor(x * scaleX);
-        var srcY = Math.floor(y * scaleY);
-        var srcIdx = srcY * srcW + srcX;
-
-        var edge = edges[srcIdx] || 0;
-        var bright = brightness[srcIdx] || 0;
-
-        var rs = RENDER_STYLES[renderStyle] || RENDER_STYLES.terminal;
-        var edgeStrength = Math.pow(edge, rs.edgePow) * rs.edgeMul;
-        var fillStrength = bright;
+        var srcIdx = rowOff + ((x * scaleX) | 0);
+        var edge = edges[srcIdx];
+        var bright = brightness[srcIdx];
 
         var r, g, b, a;
 
-        // Dark cutoff
-        if (fillStrength < rs.darkCutoff) {
+        if (bright < darkCutoff) {
           r = 0; g = 0; b = 0; a = 0;
         } else {
-          // Posterized fill
-          r = colors.r * fillStrength * rs.fillMul;
-          g = colors.g * fillStrength * rs.fillMul;
-          b = colors.b * fillStrength * rs.fillMul;
-          a = fillStrength * rs.alphaFill;
+          r = cr * bright * fillMul;
+          g = cg * bright * fillMul;
+          b = cb * bright * fillMul;
+          a = bright * alphaFill;
         }
 
-        // Edge rendering depends on blend mode
-        if (edgeStrength > rs.edgeThreshold) {
-          var edgeBoost = Math.min(edgeStrength, 1.0);
-          if (rs.edgeBlendMode === 'outline') {
-            // Dark outlines between color bands — cel-shading style
-            // Edges darken the image instead of brightening
-            r = r * (1.0 - edgeBoost * 0.7);
-            g = g * (1.0 - edgeBoost * 0.7);
-            b = b * (1.0 - edgeBoost * 0.7);
-            // But keep bright edge highlight on the very strongest edges
+        var edgeStrength = Math.pow(edge, edgePow) * edgeMul;
+        if (edgeStrength > edgeThreshold) {
+          var edgeBoost = edgeStrength < 1.0 ? edgeStrength : 1.0;
+          if (isOutline) {
+            var darken = 1.0 - edgeBoost * 0.7;
+            r *= darken; g *= darken; b *= darken;
             if (edgeBoost > 0.6) {
-              r = Math.max(r, colors.edge.r * 0.3);
-              g = Math.max(g, colors.edge.g * 0.3);
-              b = Math.max(b, colors.edge.b * 0.3);
+              var er3 = er * 0.3, eg3 = eg * 0.3, eb3 = eb * 0.3;
+              if (er3 > r) r = er3;
+              if (eg3 > g) g = eg3;
+              if (eb3 > b) b = eb3;
             }
-            a = Math.max(a, edgeBoost * rs.alphaEdge);
+            var ea = edgeBoost * alphaEdge;
+            if (ea > a) a = ea;
           } else {
-            // Additive bright edges — terminal style
-            r = Math.max(r, colors.edge.r * edgeBoost * 0.8);
-            g = Math.max(g, colors.edge.g * edgeBoost * 0.8);
-            b = Math.max(b, colors.edge.b * edgeBoost * 0.8);
-            a = Math.max(a, edgeBoost * rs.alphaEdge);
+            var erb = er * edgeBoost * 0.8;
+            var egb = eg * edgeBoost * 0.8;
+            var ebb = eb * edgeBoost * 0.8;
+            if (erb > r) r = erb;
+            if (egb > g) g = egb;
+            if (ebb > b) b = ebb;
+            var ea2 = edgeBoost * alphaEdge;
+            if (ea2 > a) a = ea2;
           }
         }
 
-        // Scanline effect
-        if (y % 2 === 0) {
-          a *= 0.88;
-        }
+        a *= scanMul;
 
-        var outIdx = (y * renderWidth + x) * 4;
-        pixels[outIdx]     = Math.min(r, 255);
-        pixels[outIdx + 1] = Math.min(g, 255);
-        pixels[outIdx + 2] = Math.min(b, 255);
-        pixels[outIdx + 3] = Math.min(a, 255);
+        var outIdx = (outRow + x) * 4;
+        pixels[outIdx]     = r < 255 ? r : 255;
+        pixels[outIdx + 1] = g < 255 ? g : 255;
+        pixels[outIdx + 2] = b < 255 ? b : 255;
+        pixels[outIdx + 3] = a < 255 ? a : 255;
       }
     }
 
-    ctx.putImageData(imgData, 0, 0);
+    ctx.putImageData(cachedImgData, 0, 0);
   }
 
   function setOpacity(opacity) {
@@ -282,6 +288,7 @@ var DXRenderer = (function() {
   function setRenderStyle(style) {
     if (RENDER_STYLES[style]) {
       renderStyle = style;
+      cachedStyleObj = RENDER_STYLES[style];
       _resize();  // re-apply resolution
     }
   }
@@ -313,6 +320,8 @@ var DXRenderer = (function() {
     }
     overlayCanvas = null;
     ctx = null;
+    cachedImgData = null;
+    cachedStyleObj = null;
   }
 
   function getStatus() {

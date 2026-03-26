@@ -13,6 +13,9 @@ var WebcamModule = (function() {
   var animFrameId = null;
   var captureWidth = 160;
   var captureHeight = 120;
+  var targetFps = 15;
+  var lastFrameTime = 0;
+  var frameInterval = 1000 / 15;
 
   function init(width, height) {
     captureWidth = width || 160;
@@ -66,8 +69,14 @@ var WebcamModule = (function() {
     }
   }
 
-  function _captureLoop() {
+  function _captureLoop(timestamp) {
     if (!isActive) return;
+
+    animFrameId = requestAnimationFrame(_captureLoop);
+
+    // Throttle to target FPS to reduce CPU load
+    if (timestamp - lastFrameTime < frameInterval) return;
+    lastFrameTime = timestamp;
 
     if (video.readyState >= video.HAVE_CURRENT_DATA) {
       // Draw video frame to canvas (mirrored)
@@ -83,8 +92,6 @@ var WebcamModule = (function() {
         frameCallbacks[i](imageData, captureWidth, captureHeight);
       }
     }
-
-    animFrameId = requestAnimationFrame(_captureLoop);
   }
 
   function onFrame(callback) {
