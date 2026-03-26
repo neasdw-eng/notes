@@ -1909,11 +1909,12 @@ class NotesApp {
         defaultOpacity: 0.30, blendMode: 'screen'
       },
       peanuts: {
+        useCharacterAnimation: true, // Special mode: animated characters instead of webcam
         substyles: [
-          { name: 'cartoon', label: 'Cartoon', processorStyle: 'cartoon', renderStyle: 'cartoon', colorMode: 'cartoon' },
-          { name: 'sketch', label: 'Sketch', processorStyle: 'sketch', renderStyle: 'sketch', colorMode: 'pencil' }
+          { name: 'hangout', label: 'Hangout' },
+          { name: 'dance', label: 'Dance' }
         ],
-        defaultOpacity: 0.25, blendMode: 'multiply'
+        defaultOpacity: 0, blendMode: 'screen'
       },
       warcraft: {
         substyles: [
@@ -1923,6 +1924,11 @@ class NotesApp {
         defaultOpacity: 0.30, blendMode: 'screen'
       }
     };
+
+    // Web Worker for off-thread image processing
+    this._processWorker = null;
+    this._workerBusy = false;
+    this._frameCallback = null;
 
     // Audio engine
     this.audioCtx = null;
@@ -1955,6 +1961,12 @@ class NotesApp {
     });
     this.els.btnReflection.addEventListener('click', () => this.toggleReflection());
     this.els.reflectStyle.addEventListener('change', (e) => {
+      const theme = this.els.app.dataset.theme;
+      const config = this.themeReflectionConfig[theme];
+      if (config && config.useCharacterAnimation) {
+        // Character animation reads style dynamically, no restart needed
+        return;
+      }
       this.setReflectionStyle(e.target.value);
       // If reflection is active, restart with new style
       if (this.reflectionActive) {
@@ -1998,7 +2010,15 @@ class NotesApp {
 
     // Stop effects when switching themes
     if (prevTheme !== theme) {
-      if (this.reflectionActive) this.stopReflection();
+      if (this.reflectionActive) {
+        // Check if previous theme used character animation
+        const prevConfig = this.themeReflectionConfig[prevTheme];
+        if (prevConfig && prevConfig.useCharacterAnimation) {
+          this.stopCharacterAnimation();
+        } else {
+          this.stopReflection();
+        }
+      }
       this.stopVisualFx();
       this.stopAudio();
     }
@@ -2013,7 +2033,11 @@ class NotesApp {
 
       // Persist reflection state across theme switches
       if (wasReflecting) {
-        this.startReflection();
+        if (config.useCharacterAnimation) {
+          this.startCharacterAnimation();
+        } else {
+          this.startReflection();
+        }
       }
     }
   }
@@ -2021,8 +2045,15 @@ class NotesApp {
   // ========== WEBCAM REFLECTION ==========
   updateReflectionButton() {
     const theme = this.els.app.dataset.theme;
-    const hasReflection = !!this.themeReflectionConfig[theme];
+    const config = this.themeReflectionConfig[theme];
+    const hasReflection = !!config;
     this.els.btnReflection.style.display = hasReflection ? '' : 'none';
+    // Update button label for character animation themes
+    if (config && config.useCharacterAnimation) {
+      this.els.btnReflection.textContent = 'Gang';
+    } else {
+      this.els.btnReflection.textContent = 'Reflect';
+    }
     // Only show style dropdown when reflection is actually on
     this.els.reflectStyle.style.display = (hasReflection && this.reflectionActive) ? '' : 'none';
   }
@@ -2064,6 +2095,19 @@ class NotesApp {
   }
 
   toggleReflection() {
+    const theme = this.els.app.dataset.theme;
+    const config = this.themeReflectionConfig[theme];
+
+    if (config && config.useCharacterAnimation) {
+      // Peanuts: toggle character animation instead of webcam
+      if (this.reflectionActive) {
+        this.stopCharacterAnimation();
+      } else {
+        this.startCharacterAnimation();
+      }
+      return;
+    }
+
     if (this.reflectionActive) {
       this.stopReflection();
     } else {
@@ -2089,16 +2133,46 @@ class NotesApp {
     const overlay = container.querySelector('.dx-reflection-overlay');
     if (overlay) overlay.style.mixBlendMode = blendMode;
 
-    // Set processor + renderer styles
+    // Set renderer style (processor style is sent per-frame to worker)
     if (sub) {
       ImageProcessor.setStyle(sub.processorStyle);
       DXRenderer.setRenderStyle(sub.renderStyle);
     }
 
-    WebcamModule.onFrame((imageData) => {
-      const processed = ImageProcessor.processFrame(imageData);
-      DXRenderer.renderFrame(processed);
-    });
+    // Create Web Worker for off-thread image processing
+    this._processWorker = new Worker('modules/process-worker.js');
+    this._workerBusy = false;
+
+    this._processWorker.onmessage = (e) => {
+      this._workerBusy = false;
+      DXRenderer.renderFrame(e.data);
+    };
+
+    this._processWorker.onerror = (e) => {
+      console.warn('Worker error, falling back to main thread:', e.message);
+      this._processWorker = null;
+    };
+
+    // Frame callback — sends to worker, skips if worker is busy
+    this._frameCallback = (imageData) => {
+      if (this._processWorker && !this._workerBusy) {
+        this._workerBusy = true;
+        const buf = imageData.data.buffer.slice(0);
+        this._processWorker.postMessage({
+          pixels: buf,
+          width: imageData.width,
+          height: imageData.height,
+          styleName: ImageProcessor.getStyle()
+        }, [buf]);
+      } else if (!this._processWorker) {
+        // Fallback: main thread processing (shouldn't normally happen)
+        const processed = ImageProcessor.processFrame(imageData);
+        DXRenderer.renderFrame(processed);
+      }
+      // If worker is busy, frame is dropped — keeps UI responsive
+    };
+
+    WebcamModule.onFrame(this._frameCallback);
 
     WebcamModule.start().then(() => {
       this.reflectionActive = true;
@@ -2106,13 +2180,285 @@ class NotesApp {
       this.els.reflectStyle.style.display = '';
     }).catch((err) => {
       console.warn('Webcam access denied:', err.message);
+      if (this._processWorker) {
+        this._processWorker.terminate();
+        this._processWorker = null;
+      }
       DXRenderer.destroy();
     });
   }
 
   stopReflection() {
+    // Remove frame callback before stopping webcam
+    if (this._frameCallback) {
+      WebcamModule.removeOnFrame(this._frameCallback);
+      this._frameCallback = null;
+    }
+    // Terminate worker
+    if (this._processWorker) {
+      this._processWorker.terminate();
+      this._processWorker = null;
+    }
+    this._workerBusy = false;
     WebcamModule.stop();
     DXRenderer.destroy();
+    this.reflectionActive = false;
+    this.els.btnReflection.classList.remove('active');
+    this.els.reflectStyle.style.display = 'none';
+  }
+
+  // ========== PEANUTS CHARACTER ANIMATION ==========
+  startCharacterAnimation() {
+    this.stopCharacterAnimation();
+    const container = this.els.editorContainer;
+    if (!container) return;
+
+    const canvas = document.createElement('canvas');
+    canvas.className = 'peanuts-characters';
+    canvas.style.cssText = 'position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:10;';
+    container.style.position = 'relative';
+    container.appendChild(canvas);
+    this._peanutsCanvas = canvas;
+
+    const ctx = canvas.getContext('2d');
+    const self = this;
+
+    // Character definitions — simple geometric Peanuts-style figures
+    const characters = [
+      { name: 'charlie', headColor: '#FFD89E', shirtColor: '#FFD040', stripe: '#2a2420', x: 0, y: 0, dir: 1, bobPhase: 0 },
+      { name: 'snoopy', headColor: '#FFFFFF', bodyColor: '#FFFFFF', earColor: '#2a2420', x: 0, y: 0, dir: -1, bobPhase: 1.5 },
+      { name: 'lucy', headColor: '#FFD89E', dressColor: '#4488DD', hairColor: '#2a2420', x: 0, y: 0, dir: 1, bobPhase: 3 },
+      { name: 'woodstock', headColor: '#FFE040', bodyColor: '#FFD020', x: 0, y: 0, dir: 1, bobPhase: 0.8 }
+    ];
+
+    // Position characters around edges
+    const resize = () => {
+      const rect = container.getBoundingClientRect();
+      canvas.width = rect.width;
+      canvas.height = rect.height;
+      characters[0].x = 30; characters[0].y = rect.height - 60;
+      characters[1].x = rect.width - 60; characters[1].y = rect.height - 55;
+      characters[2].x = rect.width - 50; characters[2].y = 40;
+      characters[3].x = 50; characters[3].y = 30;
+    };
+    resize();
+    this._peanutsResize = resize;
+    window.addEventListener('resize', resize);
+
+    let time = 0;
+    const draw = () => {
+      if (!this._peanutsCanvas) return;
+      const w = canvas.width, h = canvas.height;
+      ctx.clearRect(0, 0, w, h);
+      time += 0.03;
+      const isDance = (self.els.reflectStyle.value === 'dance');
+
+      characters.forEach((c, i) => {
+        ctx.save();
+        const bob = Math.sin(time * 2 + c.bobPhase) * (isDance ? 6 : 3);
+        const sway = isDance ? Math.sin(time * 3 + c.bobPhase) * 4 : 0;
+        const tx = c.x + sway;
+        const ty = c.y + bob;
+        ctx.translate(tx, ty);
+
+        if (isDance) {
+          ctx.rotate(Math.sin(time * 4 + c.bobPhase) * 0.1);
+        }
+
+        if (c.name === 'charlie') {
+          // Charlie Brown — round head, zig-zag shirt
+          // Body
+          ctx.fillStyle = c.shirtColor;
+          ctx.fillRect(-8, 8, 16, 18);
+          // Zig-zag stripe
+          ctx.strokeStyle = c.stripe;
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.moveTo(-8, 16);
+          for (let z = 0; z < 4; z++) {
+            ctx.lineTo(-8 + z * 8 + 4, 13);
+            ctx.lineTo(-8 + (z + 1) * 8, 16);
+          }
+          ctx.stroke();
+          // Head
+          ctx.fillStyle = c.headColor;
+          ctx.beginPath();
+          ctx.arc(0, 0, 12, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.strokeStyle = '#2a2420';
+          ctx.lineWidth = 1.5;
+          ctx.stroke();
+          // Eyes
+          ctx.fillStyle = '#2a2420';
+          ctx.beginPath();
+          ctx.arc(-3, -1, 1.5, 0, Math.PI * 2);
+          ctx.arc(3, -1, 1.5, 0, Math.PI * 2);
+          ctx.fill();
+          // Mouth
+          ctx.beginPath();
+          ctx.arc(0, 4, 3, 0.1, Math.PI - 0.1);
+          ctx.stroke();
+          // Legs
+          ctx.strokeStyle = '#2a2420';
+          ctx.lineWidth = 2;
+          const legSwing = isDance ? Math.sin(time * 5 + c.bobPhase) * 4 : 0;
+          ctx.beginPath();
+          ctx.moveTo(-4, 26); ctx.lineTo(-4 - legSwing, 36);
+          ctx.moveTo(4, 26); ctx.lineTo(4 + legSwing, 36);
+          ctx.stroke();
+        } else if (c.name === 'snoopy') {
+          // Snoopy — lying on his back or dancing
+          ctx.fillStyle = c.headColor;
+          // Body
+          ctx.beginPath();
+          ctx.ellipse(0, 8, 10, 14, 0, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.strokeStyle = '#2a2420';
+          ctx.lineWidth = 1.5;
+          ctx.stroke();
+          // Head
+          ctx.fillStyle = c.headColor;
+          ctx.beginPath();
+          ctx.arc(0, -8, 10, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.stroke();
+          // Ear
+          ctx.fillStyle = c.earColor;
+          ctx.beginPath();
+          ctx.ellipse(7, -10, 4, 8, 0.3, 0, Math.PI * 2);
+          ctx.fill();
+          // Eye
+          ctx.fillStyle = '#2a2420';
+          ctx.beginPath();
+          ctx.arc(-3, -9, 1.5, 0, Math.PI * 2);
+          ctx.fill();
+          // Nose
+          ctx.beginPath();
+          ctx.arc(-8, -6, 3, 0, Math.PI * 2);
+          ctx.fill();
+          // Tail
+          const tailWag = Math.sin(time * 6) * 0.4;
+          ctx.strokeStyle = '#2a2420';
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.moveTo(8, 18);
+          ctx.quadraticCurveTo(16, 14 + Math.sin(time * 6) * 4, 14, 8);
+          ctx.stroke();
+        } else if (c.name === 'lucy') {
+          // Lucy — dress and dark hair
+          // Dress
+          ctx.fillStyle = c.dressColor;
+          ctx.beginPath();
+          ctx.moveTo(-10, 10);
+          ctx.lineTo(10, 10);
+          ctx.lineTo(12, 28);
+          ctx.lineTo(-12, 28);
+          ctx.closePath();
+          ctx.fill();
+          ctx.strokeStyle = '#2a2420';
+          ctx.lineWidth = 1.5;
+          ctx.stroke();
+          // Head
+          ctx.fillStyle = c.headColor;
+          ctx.beginPath();
+          ctx.arc(0, 0, 11, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.stroke();
+          // Hair
+          ctx.fillStyle = c.hairColor;
+          ctx.beginPath();
+          ctx.arc(0, -3, 11, -Math.PI, -0.2);
+          ctx.lineTo(8, 0);
+          ctx.arc(0, -3, 11, -0.2, -Math.PI, true);
+          ctx.fill();
+          // Eyes
+          ctx.fillStyle = '#2a2420';
+          ctx.beginPath();
+          ctx.arc(-3, 0, 1.5, 0, Math.PI * 2);
+          ctx.arc(3, 0, 1.5, 0, Math.PI * 2);
+          ctx.fill();
+          // Mouth
+          ctx.beginPath();
+          ctx.arc(0, 4, 2, 0, Math.PI);
+          ctx.stroke();
+          // Legs
+          const lSwing = isDance ? Math.sin(time * 5 + 1) * 5 : 0;
+          ctx.strokeStyle = '#2a2420';
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.moveTo(-5, 28); ctx.lineTo(-5 - lSwing, 38);
+          ctx.moveTo(5, 28); ctx.lineTo(5 + lSwing, 38);
+          ctx.stroke();
+        } else if (c.name === 'woodstock') {
+          // Woodstock — tiny yellow bird
+          ctx.fillStyle = c.headColor;
+          ctx.beginPath();
+          ctx.arc(0, 0, 5, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.strokeStyle = '#c8a030';
+          ctx.lineWidth = 1;
+          ctx.stroke();
+          // Body
+          ctx.fillStyle = c.bodyColor;
+          ctx.beginPath();
+          ctx.ellipse(0, 7, 4, 6, 0, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.stroke();
+          // Beak
+          ctx.fillStyle = '#FF8800';
+          ctx.beginPath();
+          ctx.moveTo(4, -1);
+          ctx.lineTo(9, 0);
+          ctx.lineTo(4, 2);
+          ctx.closePath();
+          ctx.fill();
+          // Eye
+          ctx.fillStyle = '#2a2420';
+          ctx.beginPath();
+          ctx.arc(-1, -1, 1, 0, Math.PI * 2);
+          ctx.fill();
+          // Wings flapping
+          const wingAngle = Math.sin(time * 8 + c.bobPhase) * 0.5;
+          ctx.strokeStyle = '#c8a030';
+          ctx.lineWidth = 1.5;
+          ctx.beginPath();
+          ctx.moveTo(-3, 5);
+          ctx.quadraticCurveTo(-10, 2 + wingAngle * 6, -7, -2 + wingAngle * 4);
+          ctx.stroke();
+          // Feet
+          ctx.strokeStyle = '#FF8800';
+          ctx.lineWidth = 1;
+          ctx.beginPath();
+          ctx.moveTo(-2, 12); ctx.lineTo(-3, 16);
+          ctx.moveTo(2, 12); ctx.lineTo(3, 16);
+          ctx.stroke();
+        }
+
+        ctx.restore();
+      });
+
+      this._peanutsAnimId = requestAnimationFrame(draw);
+    };
+    draw();
+
+    this.reflectionActive = true;
+    this.els.btnReflection.classList.add('active');
+    this.els.reflectStyle.style.display = '';
+  }
+
+  stopCharacterAnimation() {
+    if (this._peanutsAnimId) {
+      cancelAnimationFrame(this._peanutsAnimId);
+      this._peanutsAnimId = null;
+    }
+    if (this._peanutsResize) {
+      window.removeEventListener('resize', this._peanutsResize);
+      this._peanutsResize = null;
+    }
+    if (this._peanutsCanvas && this._peanutsCanvas.parentNode) {
+      this._peanutsCanvas.parentNode.removeChild(this._peanutsCanvas);
+    }
+    this._peanutsCanvas = null;
     this.reflectionActive = false;
     this.els.btnReflection.classList.remove('active');
     this.els.reflectStyle.style.display = 'none';

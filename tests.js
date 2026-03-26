@@ -1071,7 +1071,7 @@ async function runNewThemeTests() {
     masseffect: ['Paragon', 'Renegade'],
     startrek: ['LCARS', 'Holodeck'],
     twinpeaks: ['Black Lodge', 'The Owls'],
-    peanuts: ['Cartoon', 'Sketch'],
+    peanuts: ['Hangout', 'Dance'],
     warcraft: ['Alliance', 'Horde']
   };
 
@@ -1092,6 +1092,23 @@ async function runNewThemeTests() {
       };
     })(sTheme, expectedSubstyles[sTheme]));
   }
+
+  // Test: Peanuts uses "Gang" button instead of "Reflect"
+  await test('Peanuts theme shows Gang button label', function() {
+    var sel = doc.getElementById('theme-select');
+    sel.value = 'peanuts';
+    sel.dispatchEvent(new Event('change', { bubbles: true }));
+    var btn = doc.getElementById('btn-reflection');
+    assertEqual(btn.textContent, 'Gang', 'Peanuts should show Gang button');
+  });
+
+  await test('Non-Peanuts themes show Reflect button label', function() {
+    var sel = doc.getElementById('theme-select');
+    sel.value = 'deusex';
+    sel.dispatchEvent(new Event('change', { bubbles: true }));
+    var btn = doc.getElementById('btn-reflection');
+    assertEqual(btn.textContent, 'Reflect', 'Deus Ex should show Reflect button');
+  });
 
   // Test: new ImageProcessor styles exist
   await test('ImageProcessor has all new theme styles', function() {
