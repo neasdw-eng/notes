@@ -1909,7 +1909,8 @@ class NotesApp {
         useStarfield: true,
         substyles: [
           { name: 'warp', label: 'Warp' },
-          { name: 'drift', label: 'Drift' }
+          { name: 'drift', label: 'Drift' },
+          { name: 'nebula', label: 'Nebula' }
         ],
         defaultOpacity: 0, blendMode: 'screen'
       },
@@ -2525,7 +2526,7 @@ class NotesApp {
       });
     }
 
-    // Occasional nebula clouds
+    // Occasional nebula clouds (used in drift and warp modes)
     const nebulae = [];
     for (let i = 0; i < 4; i++) {
       nebulae.push({
@@ -2539,101 +2540,212 @@ class NotesApp {
       });
     }
 
+    // Large nebula clouds for nebula substyle — purple/violet palette
+    const nebulaeClouds = [];
+    const purpleColors = [
+      [80, 20, 120],   [100, 30, 150],  [60, 10, 100],
+      [120, 40, 160],  [90, 15, 130],   [70, 25, 110],
+      [110, 20, 140],  [50, 30, 100],   [130, 50, 170],
+      [85, 10, 115],   [95, 35, 145],   [65, 20, 105]
+    ];
+    for (let i = 0; i < 12; i++) {
+      nebulaeClouds.push({
+        x: Math.random() * 2 - 1,
+        y: Math.random() * 2 - 1,
+        radius: 200 + Math.random() * 300,
+        cr: purpleColors[i][0], cg: purpleColors[i][1], cb: purpleColors[i][2],
+        opacity: 0.18 + Math.random() * 0.14,
+        driftX: (Math.random() - 0.5) * 0.00005,
+        driftY: (Math.random() - 0.5) * 0.00005,
+        shimmerPhase: Math.random() * Math.PI * 2,
+        shimmerSpeed: 0.06 + Math.random() * 0.15
+      });
+    }
+
     let time = 0;
     const draw = () => {
       if (!this._starCanvas) return;
       const w = canvas.width, h = canvas.height;
       const cx = w / 2, cy = h / 2;
-      const isWarp = (self.els.reflectStyle.value === 'warp');
+      const currentStyle = self.els.reflectStyle.value;
+      const isWarp = (currentStyle === 'warp');
+      const isNebula = (currentStyle === 'nebula');
 
       // Deep space background
       ctx.fillStyle = '#000000';
       ctx.fillRect(0, 0, w, h);
 
-      // Subtle deep-space gradient
-      const bgGrad = ctx.createRadialGradient(cx, cy, 0, cx, cy, Math.max(w, h) * 0.7);
-      bgGrad.addColorStop(0, 'rgba(10, 15, 30, 0.8)');
-      bgGrad.addColorStop(0.5, 'rgba(5, 5, 15, 0.5)');
-      bgGrad.addColorStop(1, 'rgba(0, 0, 5, 0)');
-      ctx.fillStyle = bgGrad;
-      ctx.fillRect(0, 0, w, h);
+      if (isNebula) {
+        // Nebula mode: deep purple-tinted background
+        const bgGrad = ctx.createRadialGradient(cx, cy, 0, cx, cy, Math.max(w, h) * 0.8);
+        bgGrad.addColorStop(0, 'rgba(20, 8, 35, 1.0)');
+        bgGrad.addColorStop(0.35, 'rgba(12, 4, 25, 0.85)');
+        bgGrad.addColorStop(0.65, 'rgba(6, 2, 18, 0.6)');
+        bgGrad.addColorStop(1, 'rgba(2, 0, 10, 0.3)');
+        ctx.fillStyle = bgGrad;
+        ctx.fillRect(0, 0, w, h);
+      } else {
+        // Subtle deep-space gradient
+        const bgGrad = ctx.createRadialGradient(cx, cy, 0, cx, cy, Math.max(w, h) * 0.7);
+        bgGrad.addColorStop(0, 'rgba(10, 15, 30, 0.8)');
+        bgGrad.addColorStop(0.5, 'rgba(5, 5, 15, 0.5)');
+        bgGrad.addColorStop(1, 'rgba(0, 0, 5, 0)');
+        ctx.fillStyle = bgGrad;
+        ctx.fillRect(0, 0, w, h);
+      }
 
       time += 0.016;
 
-      // Draw nebulae
-      nebulae.forEach(n => {
-        n.x += n.driftX;
-        n.y += n.driftY;
-        if (n.x > 1.5) n.x = -1.5;
-        if (n.y > 1.5) n.y = -1.5;
-        const nx = cx + n.x * cx;
-        const ny = cy + n.y * cy;
-        const ng = ctx.createRadialGradient(nx, ny, 0, nx, ny, n.radius);
-        const pulseOp = n.opacity + Math.sin(time * 0.3) * 0.005;
-        ng.addColorStop(0, 'hsla(' + n.hue + ', 60%, 40%, ' + pulseOp + ')');
-        ng.addColorStop(0.5, 'hsla(' + n.hue + ', 40%, 20%, ' + (pulseOp * 0.5) + ')');
-        ng.addColorStop(1, 'transparent');
-        ctx.fillStyle = ng;
-        ctx.fillRect(nx - n.radius, ny - n.radius, n.radius * 2, n.radius * 2);
-      });
+      if (isNebula) {
+        // Draw large layered nebula clouds with additive blending for rich purple
+        ctx.save();
+        ctx.globalCompositeOperation = 'source-over';
+        nebulaeClouds.forEach(n => {
+          n.x += n.driftX;
+          n.y += n.driftY;
+          if (n.x > 1.8) n.x = -1.8;
+          if (n.x < -1.8) n.x = 1.8;
+          if (n.y > 1.8) n.y = -1.8;
+          if (n.y < -1.8) n.y = 1.8;
 
-      // Draw stars
-      stars.forEach(s => {
-        if (isWarp) {
-          // Warp speed: stars streak toward edges from center
-          s.z += 0.008;
-          if (s.z > 1) {
-            s.z = 0.01;
-            s.x = Math.random() * 2 - 1;
-            s.y = Math.random() * 2 - 1;
-          }
-          const scale = 1 / (1 - s.z * 0.9);
-          const sx = cx + s.x * cx * scale;
-          const sy = cy + s.y * cy * scale;
-          const prevScale = 1 / (1 - (s.z - 0.008) * 0.9);
-          const px = cx + s.x * cx * prevScale;
-          const py = cy + s.y * cy * prevScale;
+          const nx = cx + n.x * cx;
+          const ny = cy + n.y * cy;
 
-          if (sx < -10 || sx > w + 10 || sy < -10 || sy > h + 10) return;
+          // Shimmer: gentle opacity pulse
+          const shimmer = Math.sin(time * n.shimmerSpeed + n.shimmerPhase);
+          const op = n.opacity + shimmer * 0.06;
+          const r = n.cr, g = n.cg, b = n.cb;
 
-          // Streak line
-          const streakLen = Math.min(s.z * 40, 30);
-          const alpha = Math.min(s.z * 1.5, 1) * s.brightness;
-          ctx.strokeStyle = 'hsla(' + s.hue + ', ' + s.sat + '%, 90%, ' + alpha + ')';
-          ctx.lineWidth = s.size * s.z * 2;
-          ctx.beginPath();
-          ctx.moveTo(px, py);
-          ctx.lineTo(sx, sy);
-          ctx.stroke();
-        } else {
-          // Drift: gentle parallax movement
-          s.x += 0.0002 * (1 + s.z);
+          // Outer soft glow layer — large diffuse cloud
+          const outerR = n.radius * 1.8;
+          const outerGrad = ctx.createRadialGradient(nx, ny, 0, nx, ny, outerR);
+          outerGrad.addColorStop(0, 'rgba(' + r + ',' + g + ',' + b + ',' + (op * 0.9) + ')');
+          outerGrad.addColorStop(0.2, 'rgba(' + r + ',' + g + ',' + b + ',' + (op * 0.6) + ')');
+          outerGrad.addColorStop(0.5, 'rgba(' + r + ',' + g + ',' + b + ',' + (op * 0.25) + ')');
+          outerGrad.addColorStop(1, 'rgba(' + r + ',' + g + ',' + b + ',0)');
+          ctx.fillStyle = outerGrad;
+          ctx.fillRect(nx - outerR, ny - outerR, outerR * 2, outerR * 2);
+
+          // Inner brighter core — concentrated color
+          const br = Math.min(255, r + 60), bg = Math.min(255, g + 40), bb = Math.min(255, b + 50);
+          const innerR = n.radius * 0.6;
+          const innerGrad = ctx.createRadialGradient(nx, ny, 0, nx, ny, innerR);
+          innerGrad.addColorStop(0, 'rgba(' + br + ',' + bg + ',' + bb + ',' + (op * 1.0) + ')');
+          innerGrad.addColorStop(0.4, 'rgba(' + r + ',' + g + ',' + b + ',' + (op * 0.5) + ')');
+          innerGrad.addColorStop(1, 'rgba(' + r + ',' + g + ',' + b + ',0)');
+          ctx.fillStyle = innerGrad;
+          ctx.fillRect(nx - innerR, ny - innerR, innerR * 2, innerR * 2);
+        });
+        ctx.restore();
+
+        // Draw fewer, dimmer, slowly twinkling stars for nebula mode
+        stars.forEach((s, i) => {
+          if (i >= 60) return; // Only use ~60 stars (fewer than drift/warp)
+
+          // Very slow drift
+          s.x += 0.00008 * (1 + s.z);
           if (s.x > 1.2) s.x = -1.2;
 
           const sx = cx + s.x * cx;
           const sy = cy + s.y * cy;
           if (sx < -5 || sx > w + 5 || sy < -5 || sy > h + 5) return;
 
-          // Twinkle
-          const twinkle = 0.5 + 0.5 * Math.sin(time * s.twinkleSpeed + s.twinklePhase);
-          const alpha = s.brightness * twinkle;
-          const r = s.size * (0.8 + s.z * 0.5);
+          // Slow, gentle twinkle
+          const twinkle = 0.4 + 0.6 * Math.sin(time * s.twinkleSpeed * 0.4 + s.twinklePhase);
+          const alpha = s.brightness * twinkle * 0.45; // Much dimmer
+          const r = s.size * (0.6 + s.z * 0.3);
 
-          // Glow
+          // Soft purple-tinted glow
+          const starHue = 260 + Math.random() * 0.1; // Stable purple-ish hue
           const glow = ctx.createRadialGradient(sx, sy, 0, sx, sy, r * 3);
-          glow.addColorStop(0, 'hsla(' + s.hue + ', ' + s.sat + '%, 95%, ' + (alpha * 0.8) + ')');
-          glow.addColorStop(0.3, 'hsla(' + s.hue + ', ' + s.sat + '%, 80%, ' + (alpha * 0.3) + ')');
+          glow.addColorStop(0, 'hsla(' + starHue + ', 20%, 90%, ' + (alpha * 0.6) + ')');
+          glow.addColorStop(0.4, 'hsla(' + starHue + ', 15%, 75%, ' + (alpha * 0.2) + ')');
           glow.addColorStop(1, 'transparent');
           ctx.fillStyle = glow;
           ctx.fillRect(sx - r * 3, sy - r * 3, r * 6, r * 6);
 
           // Core
-          ctx.fillStyle = 'hsla(' + s.hue + ', ' + s.sat + '%, 100%, ' + alpha + ')';
+          ctx.fillStyle = 'hsla(270, 10%, 95%, ' + alpha + ')';
           ctx.beginPath();
-          ctx.arc(sx, sy, r, 0, Math.PI * 2);
+          ctx.arc(sx, sy, r * 0.8, 0, Math.PI * 2);
           ctx.fill();
-        }
-      });
+        });
+      } else {
+        // Draw nebulae (warp/drift modes)
+        nebulae.forEach(n => {
+          n.x += n.driftX;
+          n.y += n.driftY;
+          if (n.x > 1.5) n.x = -1.5;
+          if (n.y > 1.5) n.y = -1.5;
+          const nx = cx + n.x * cx;
+          const ny = cy + n.y * cy;
+          const ng = ctx.createRadialGradient(nx, ny, 0, nx, ny, n.radius);
+          const pulseOp = n.opacity + Math.sin(time * 0.3) * 0.005;
+          ng.addColorStop(0, 'hsla(' + n.hue + ', 60%, 40%, ' + pulseOp + ')');
+          ng.addColorStop(0.5, 'hsla(' + n.hue + ', 40%, 20%, ' + (pulseOp * 0.5) + ')');
+          ng.addColorStop(1, 'transparent');
+          ctx.fillStyle = ng;
+          ctx.fillRect(nx - n.radius, ny - n.radius, n.radius * 2, n.radius * 2);
+        });
+
+        // Draw stars (warp/drift modes)
+        stars.forEach(s => {
+          if (isWarp) {
+            // Warp speed: stars streak toward edges from center
+            s.z += 0.008;
+            if (s.z > 1) {
+              s.z = 0.01;
+              s.x = Math.random() * 2 - 1;
+              s.y = Math.random() * 2 - 1;
+            }
+            const scale = 1 / (1 - s.z * 0.9);
+            const sx = cx + s.x * cx * scale;
+            const sy = cy + s.y * cy * scale;
+            const prevScale = 1 / (1 - (s.z - 0.008) * 0.9);
+            const px = cx + s.x * cx * prevScale;
+            const py = cy + s.y * cy * prevScale;
+
+            if (sx < -10 || sx > w + 10 || sy < -10 || sy > h + 10) return;
+
+            // Streak line
+            const streakLen = Math.min(s.z * 40, 30);
+            const alpha = Math.min(s.z * 1.5, 1) * s.brightness;
+            ctx.strokeStyle = 'hsla(' + s.hue + ', ' + s.sat + '%, 90%, ' + alpha + ')';
+            ctx.lineWidth = s.size * s.z * 2;
+            ctx.beginPath();
+            ctx.moveTo(px, py);
+            ctx.lineTo(sx, sy);
+            ctx.stroke();
+          } else {
+            // Drift: gentle parallax movement
+            s.x += 0.0002 * (1 + s.z);
+            if (s.x > 1.2) s.x = -1.2;
+
+            const sx = cx + s.x * cx;
+            const sy = cy + s.y * cy;
+            if (sx < -5 || sx > w + 5 || sy < -5 || sy > h + 5) return;
+
+            // Twinkle
+            const twinkle = 0.5 + 0.5 * Math.sin(time * s.twinkleSpeed + s.twinklePhase);
+            const alpha = s.brightness * twinkle;
+            const r = s.size * (0.8 + s.z * 0.5);
+
+            // Glow
+            const glow = ctx.createRadialGradient(sx, sy, 0, sx, sy, r * 3);
+            glow.addColorStop(0, 'hsla(' + s.hue + ', ' + s.sat + '%, 95%, ' + (alpha * 0.8) + ')');
+            glow.addColorStop(0.3, 'hsla(' + s.hue + ', ' + s.sat + '%, 80%, ' + (alpha * 0.3) + ')');
+            glow.addColorStop(1, 'transparent');
+            ctx.fillStyle = glow;
+            ctx.fillRect(sx - r * 3, sy - r * 3, r * 6, r * 6);
+
+            // Core
+            ctx.fillStyle = 'hsla(' + s.hue + ', ' + s.sat + '%, 100%, ' + alpha + ')';
+            ctx.beginPath();
+            ctx.arc(sx, sy, r, 0, Math.PI * 2);
+            ctx.fill();
+          }
+        });
+      }
 
       this._starAnimId = requestAnimationFrame(draw);
     };

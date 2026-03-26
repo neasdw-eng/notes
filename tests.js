@@ -1057,7 +1057,7 @@ async function runNewThemeTests() {
 
   // Test: reflect-style dropdown updates per theme
   var expectedSubstyles = {
-    startrek: ['Warp', 'Drift'],
+    startrek: ['Warp', 'Drift', 'Nebula'],
     peanuts: ['Hangout', 'Dance']
   };
 
