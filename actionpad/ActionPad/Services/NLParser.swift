@@ -127,29 +127,34 @@ class NLParser {
     }
 
     /// Bumps a date to the future if it's in the past.
-    /// For times today that have passed, moves to tomorrow.
-    /// For dates that have passed this month, moves to next month (for day-only like "the 13th").
+    /// Keeps adding days until the date is in the future.
     private func bumpDateIfPast(_ date: Date) -> Date {
+        var result = date
         let now = Date()
-        guard date < now else { return date }
+        guard result < now else { return result }
 
         let calendar = Calendar.current
 
-        // If the date is today but the time has passed, bump to tomorrow same time
-        if calendar.isDateInToday(date) {
-            return calendar.date(byAdding: .day, value: 1, to: date) ?? date
+        // Check if this looks like a day-of-month reference (no specific time set)
+        // NSDataDetector for date-only inputs like "the 13th" returns midnight
+        let components = calendar.dateComponents([.hour, .minute, .second], from: result)
+        let isDateOnly = components.hour == 0 && components.minute == 0 && components.second == 0
+
+        if isDateOnly {
+            // For date-only references like "the 13th", bump by month until future
+            while result < now {
+                guard let next = calendar.date(byAdding: .month, value: 1, to: result) else { break }
+                result = next
+            }
+        } else {
+            // For time-specific dates, bump by day until future
+            while result < now {
+                guard let next = calendar.date(byAdding: .day, value: 1, to: result) else { break }
+                result = next
+            }
         }
 
-        // If the date is earlier this week/month, bump by a reasonable amount
-        let components = calendar.dateComponents([.hour, .minute], from: date)
-        if components.hour == 0 && components.minute == 0 {
-            // Date-only (no specific time) - bump to next occurrence
-            // e.g., "the 13th" when today is the 15th -> next month's 13th
-            return calendar.date(byAdding: .month, value: 1, to: date) ?? date
-        }
-
-        // Time-specific past date - bump by 1 day
-        return calendar.date(byAdding: .day, value: 1, to: date) ?? date
+        return result
     }
 
     private func extractTitle(from text: String, dateRange: Range<String.Index>?) -> String {

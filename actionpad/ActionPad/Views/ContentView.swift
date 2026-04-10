@@ -97,14 +97,11 @@ struct ContentView: View {
         .onAppear {
             isTextFocused = true
         }
-        .sheet(item: $result) { res in
+        .sheet(item: $result, onDismiss: {
+            resetAfterDismiss()
+        }) { res in
             ConfirmationView(result: res) {
                 result = nil
-                inputText = ""
-                detectedIntent = nil
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                    isTextFocused = true
-                }
             }
             .presentationDetents([.fraction(0.4), .medium])
         }
@@ -112,6 +109,14 @@ struct ContentView: View {
 
     private var canSend: Bool {
         !inputText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && !isProcessing
+    }
+
+    private func resetAfterDismiss() {
+        inputText = ""
+        detectedIntent = nil
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+            isTextFocused = true
+        }
     }
 
     private func updatePreview() {

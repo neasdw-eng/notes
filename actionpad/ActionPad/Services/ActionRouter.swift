@@ -3,13 +3,31 @@ import EventKit
 
 class ActionRouter: ObservableObject {
     let parser = NLParser()
-    private let store = EKEventStore()
-    private lazy var calendarService = CalendarService(store: store)
-    private lazy var reminderService = ReminderService(store: store)
+    private let store: EKEventStore
+    private let calendarService: CalendarService
+    private let reminderService: ReminderService
     private let notificationService = NotificationService()
 
-    private static let dateFormatter: DateFormatter = {
+    init() {
+        let eventStore = EKEventStore()
+        self.store = eventStore
+        self.calendarService = CalendarService(store: eventStore)
+        self.reminderService = ReminderService(store: eventStore)
+    }
+
+    private static let todayFormatter: DateFormatter = {
         let f = DateFormatter()
+        f.dateFormat = "h:mm a 'today'"
+        return f
+    }()
+    private static let tomorrowFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.dateFormat = "h:mm a 'tomorrow'"
+        return f
+    }()
+    private static let otherFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.dateFormat = "EEE, MMM d 'at' h:mm a"
         return f
     }()
 
@@ -146,21 +164,6 @@ class ActionRouter: ObservableObject {
     }
 
     private func handleNotification(_ action: ParsedAction) async -> ActionResult {
-        // If we have a date, try reminder first (more persistent than a notification)
-        if let date = action.date {
-            do {
-                let success = try await reminderService.createReminder(title: action.title, dueDate: date)
-                if success {
-                    return ActionResult(
-                        success: true,
-                        intent: .reminder,
-                        title: action.title,
-                        message: "Due: \(formatDate(date))"
-                    )
-                }
-            } catch {}
-        }
-
         do {
             try await notificationService.scheduleNotification(
                 title: action.title,
@@ -210,17 +213,14 @@ class ActionRouter: ObservableObject {
     }
 
     private func formatDate(_ date: Date) -> String {
-        let formatter = Self.dateFormatter
         let calendar = Calendar.current
 
         if calendar.isDateInToday(date) {
-            formatter.dateFormat = "h:mm a 'today'"
+            return Self.todayFormatter.string(from: date)
         } else if calendar.isDateInTomorrow(date) {
-            formatter.dateFormat = "h:mm a 'tomorrow'"
+            return Self.tomorrowFormatter.string(from: date)
         } else {
-            formatter.dateFormat = "EEE, MMM d 'at' h:mm a"
+            return Self.otherFormatter.string(from: date)
         }
-
-        return formatter.string(from: date)
     }
 }

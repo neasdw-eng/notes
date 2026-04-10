@@ -27,7 +27,6 @@ final class NLParserTests: XCTestCase {
             ("clean the kitchen", .reminder),
             ("fix the leaky faucet", .reminder),
             ("order new shoes", .reminder),
-            ("book a dentist appointment", .reminder),
         ]
 
         for (input, expected) in inputs {
@@ -50,6 +49,7 @@ final class NLParserTests: XCTestCase {
             ("yoga class at 7am", .calendarEvent),
             ("birthday party on Saturday", .calendarEvent),
             ("concert on Friday night", .calendarEvent),
+            ("book a dentist appointment", .calendarEvent), // "appointment" (calendar) beats "book" (reminder)
         ]
 
         for (input, expected) in inputs {
