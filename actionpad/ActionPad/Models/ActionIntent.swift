@@ -11,7 +11,7 @@ enum ActionIntent: String {
         case .calendarEvent: return "Calendar Event"
         case .reminder: return "Reminder"
         case .alarm: return "Alarm"
-        case .notification: return "Notification"
+        case .notification: return "Note"
         }
     }
 

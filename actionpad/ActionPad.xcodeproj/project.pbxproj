@@ -7,61 +7,61 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		A10001 /* ActionPadApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10001; };
-		A10002 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10002; };
-		A10003 /* ConfirmationView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10003; };
-		A10004 /* ActionIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10004; };
-		A10005 /* ParsedAction.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10005; };
-		A10006 /* NLParser.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10006; };
-		A10007 /* CalendarService.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10007; };
-		A10008 /* ReminderService.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10008; };
-		A10009 /* NotificationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10009; };
-		A10010 /* ActionRouter.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10010; };
-		A10011 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = B10011; };
-		A10012 /* Preview Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = B10012; };
-		A10020 /* NLParserTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10020; };
-		A10021 /* ActionRouterTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10021; };
+		AA0001AA0001AA0001AA0001 /* ActionPadApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB0001BB0001BB0001BB0001; };
+		AA0002AA0002AA0002AA0002 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB0002BB0002BB0002BB0002; };
+		AA0003AA0003AA0003AA0003 /* ConfirmationView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB0003BB0003BB0003BB0003; };
+		AA0004AA0004AA0004AA0004 /* ActionIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB0004BB0004BB0004BB0004; };
+		AA0005AA0005AA0005AA0005 /* ParsedAction.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB0005BB0005BB0005BB0005; };
+		AA0006AA0006AA0006AA0006 /* NLParser.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB0006BB0006BB0006BB0006; };
+		AA0007AA0007AA0007AA0007 /* CalendarService.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB0007BB0007BB0007BB0007; };
+		AA0008AA0008AA0008AA0008 /* ReminderService.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB0008BB0008BB0008BB0008; };
+		AA0009AA0009AA0009AA0009 /* NotificationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB0009BB0009BB0009BB0009; };
+		AA0010AA0010AA0010AA0010 /* ActionRouter.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB0010BB0010BB0010BB0010; };
+		AA0011AA0011AA0011AA0011 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = BB0011BB0011BB0011BB0011; };
+		AA0012AA0012AA0012AA0012 /* Preview Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = BB0012BB0012BB0012BB0012; };
+		AA0020AA0020AA0020AA0020 /* NLParserTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB0020BB0020BB0020BB0020; };
+		AA0021AA0021AA0021AA0021 /* ActionRouterTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB0021BB0021BB0021BB0021; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
-		C10001 /* PBXContainerItemProxy */ = {
+		CC0001CC0001CC0001CC0001 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
-			containerPortal = D10001 /* Project object */;
+			containerPortal = DD0001DD0001DD0001DD0001 /* Project object */;
 			proxyType = 1;
-			remoteGlobalIDString = E10001;
+			remoteGlobalIDString = EE0001EE0001EE0001EE0001;
 			remoteInfo = ActionPad;
 		};
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
-		B10001 /* ActionPadApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ActionPadApp.swift; sourceTree = "<group>"; };
-		B10002 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
-		B10003 /* ConfirmationView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConfirmationView.swift; sourceTree = "<group>"; };
-		B10004 /* ActionIntent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ActionIntent.swift; sourceTree = "<group>"; };
-		B10005 /* ParsedAction.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ParsedAction.swift; sourceTree = "<group>"; };
-		B10006 /* NLParser.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NLParser.swift; sourceTree = "<group>"; };
-		B10007 /* CalendarService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CalendarService.swift; sourceTree = "<group>"; };
-		B10008 /* ReminderService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReminderService.swift; sourceTree = "<group>"; };
-		B10009 /* NotificationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationService.swift; sourceTree = "<group>"; };
-		B10010 /* ActionRouter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ActionRouter.swift; sourceTree = "<group>"; };
-		B10011 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
-		B10012 /* Preview Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = "Preview Assets.xcassets"; sourceTree = "<group>"; };
-		B10013 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
-		B10020 /* NLParserTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NLParserTests.swift; sourceTree = "<group>"; };
-		B10021 /* ActionRouterTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ActionRouterTests.swift; sourceTree = "<group>"; };
-		F10001 /* ActionPad.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = ActionPad.app; sourceTree = BUILT_PRODUCTS_DIR; };
-		F10002 /* ActionPadTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = ActionPadTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		BB0001BB0001BB0001BB0001 /* ActionPadApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ActionPadApp.swift; sourceTree = "<group>"; };
+		BB0002BB0002BB0002BB0002 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
+		BB0003BB0003BB0003BB0003 /* ConfirmationView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConfirmationView.swift; sourceTree = "<group>"; };
+		BB0004BB0004BB0004BB0004 /* ActionIntent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ActionIntent.swift; sourceTree = "<group>"; };
+		BB0005BB0005BB0005BB0005 /* ParsedAction.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ParsedAction.swift; sourceTree = "<group>"; };
+		BB0006BB0006BB0006BB0006 /* NLParser.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NLParser.swift; sourceTree = "<group>"; };
+		BB0007BB0007BB0007BB0007 /* CalendarService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CalendarService.swift; sourceTree = "<group>"; };
+		BB0008BB0008BB0008BB0008 /* ReminderService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReminderService.swift; sourceTree = "<group>"; };
+		BB0009BB0009BB0009BB0009 /* NotificationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationService.swift; sourceTree = "<group>"; };
+		BB0010BB0010BB0010BB0010 /* ActionRouter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ActionRouter.swift; sourceTree = "<group>"; };
+		BB0011BB0011BB0011BB0011 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		BB0012BB0012BB0012BB0012 /* Preview Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = "Preview Assets.xcassets"; sourceTree = "<group>"; };
+		BB0013BB0013BB0013BB0013 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		BB0020BB0020BB0020BB0020 /* NLParserTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NLParserTests.swift; sourceTree = "<group>"; };
+		BB0021BB0021BB0021BB0021 /* ActionRouterTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ActionRouterTests.swift; sourceTree = "<group>"; };
+		FF0001FF0001FF0001FF0001 /* ActionPad.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = ActionPad.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		FF0002FF0002FF0002FF0002 /* ActionPadTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = ActionPadTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
-		G10001 /* Frameworks */ = {
+		GG0001GG0001GG0001GG0001 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-		G10002 /* Frameworks */ = {
+		GG0002GG0002GG0002GG0002 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -71,81 +71,81 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
-		H10001 = {
+		HH0001HH0001HH0001HH0001 = {
 			isa = PBXGroup;
 			children = (
-				H10002 /* ActionPad */,
-				H10007 /* ActionPadTests */,
-				H10008 /* Products */,
+				HH0002HH0002HH0002HH0002 /* ActionPad */,
+				HH0007HH0007HH0007HH0007 /* ActionPadTests */,
+				HH0008HH0008HH0008HH0008 /* Products */,
 			);
 			sourceTree = "<group>";
 		};
-		H10002 /* ActionPad */ = {
+		HH0002HH0002HH0002HH0002 /* ActionPad */ = {
 			isa = PBXGroup;
 			children = (
-				B10001 /* ActionPadApp.swift */,
-				B10013 /* Info.plist */,
-				B10011 /* Assets.xcassets */,
-				H10003 /* Views */,
-				H10004 /* Models */,
-				H10005 /* Services */,
-				H10006 /* Preview Content */,
+				BB0001BB0001BB0001BB0001 /* ActionPadApp.swift */,
+				BB0013BB0013BB0013BB0013 /* Info.plist */,
+				BB0011BB0011BB0011BB0011 /* Assets.xcassets */,
+				HH0003HH0003HH0003HH0003 /* Views */,
+				HH0004HH0004HH0004HH0004 /* Models */,
+				HH0005HH0005HH0005HH0005 /* Services */,
+				HH0006HH0006HH0006HH0006 /* Preview Content */,
 			);
 			path = ActionPad;
 			sourceTree = "<group>";
 		};
-		H10003 /* Views */ = {
+		HH0003HH0003HH0003HH0003 /* Views */ = {
 			isa = PBXGroup;
 			children = (
-				B10002 /* ContentView.swift */,
-				B10003 /* ConfirmationView.swift */,
+				BB0002BB0002BB0002BB0002 /* ContentView.swift */,
+				BB0003BB0003BB0003BB0003 /* ConfirmationView.swift */,
 			);
 			path = Views;
 			sourceTree = "<group>";
 		};
-		H10004 /* Models */ = {
+		HH0004HH0004HH0004HH0004 /* Models */ = {
 			isa = PBXGroup;
 			children = (
-				B10004 /* ActionIntent.swift */,
-				B10005 /* ParsedAction.swift */,
+				BB0004BB0004BB0004BB0004 /* ActionIntent.swift */,
+				BB0005BB0005BB0005BB0005 /* ParsedAction.swift */,
 			);
 			path = Models;
 			sourceTree = "<group>";
 		};
-		H10005 /* Services */ = {
+		HH0005HH0005HH0005HH0005 /* Services */ = {
 			isa = PBXGroup;
 			children = (
-				B10006 /* NLParser.swift */,
-				B10007 /* CalendarService.swift */,
-				B10008 /* ReminderService.swift */,
-				B10009 /* NotificationService.swift */,
-				B10010 /* ActionRouter.swift */,
+				BB0006BB0006BB0006BB0006 /* NLParser.swift */,
+				BB0007BB0007BB0007BB0007 /* CalendarService.swift */,
+				BB0008BB0008BB0008BB0008 /* ReminderService.swift */,
+				BB0009BB0009BB0009BB0009 /* NotificationService.swift */,
+				BB0010BB0010BB0010BB0010 /* ActionRouter.swift */,
 			);
 			path = Services;
 			sourceTree = "<group>";
 		};
-		H10006 /* Preview Content */ = {
+		HH0006HH0006HH0006HH0006 /* Preview Content */ = {
 			isa = PBXGroup;
 			children = (
-				B10012 /* Preview Assets.xcassets */,
+				BB0012BB0012BB0012BB0012 /* Preview Assets.xcassets */,
 			);
 			path = "Preview Content";
 			sourceTree = "<group>";
 		};
-		H10007 /* ActionPadTests */ = {
+		HH0007HH0007HH0007HH0007 /* ActionPadTests */ = {
 			isa = PBXGroup;
 			children = (
-				B10020 /* NLParserTests.swift */,
-				B10021 /* ActionRouterTests.swift */,
+				BB0020BB0020BB0020BB0020 /* NLParserTests.swift */,
+				BB0021BB0021BB0021BB0021 /* ActionRouterTests.swift */,
 			);
 			path = ActionPadTests;
 			sourceTree = "<group>";
 		};
-		H10008 /* Products */ = {
+		HH0008HH0008HH0008HH0008 /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				F10001 /* ActionPad.app */,
-				F10002 /* ActionPadTests.xctest */,
+				FF0001FF0001FF0001FF0001 /* ActionPad.app */,
+				FF0002FF0002FF0002FF0002 /* ActionPadTests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -153,13 +153,13 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
-		E10001 /* ActionPad */ = {
+		EE0001EE0001EE0001EE0001 /* ActionPad */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = J10003;
+			buildConfigurationList = JJ0003JJ0003JJ0003JJ0003;
 			buildPhases = (
-				I10001 /* Sources */,
-				G10001 /* Frameworks */,
-				K10001 /* Resources */,
+				II0001II0001II0001II0001 /* Sources */,
+				GG0001GG0001GG0001GG0001 /* Frameworks */,
+				KK0001KK0001KK0001KK0001 /* Resources */,
 			);
 			buildRules = (
 			);
@@ -167,46 +167,46 @@
 			);
 			name = ActionPad;
 			productName = ActionPad;
-			productReference = F10001 /* ActionPad.app */;
+			productReference = FF0001FF0001FF0001FF0001 /* ActionPad.app */;
 			productType = "com.apple.product-type.application";
 		};
-		E10002 /* ActionPadTests */ = {
+		EE0002EE0002EE0002EE0002 /* ActionPadTests */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = J10006;
+			buildConfigurationList = JJ0006JJ0006JJ0006JJ0006;
 			buildPhases = (
-				I10002 /* Sources */,
-				G10002 /* Frameworks */,
+				II0002II0002II0002II0002 /* Sources */,
+				GG0002GG0002GG0002GG0002 /* Frameworks */,
 			);
 			buildRules = (
 			);
 			dependencies = (
-				L10001 /* PBXTargetDependency */,
+				LL0001LL0001LL0001LL0001 /* PBXTargetDependency */,
 			);
 			name = ActionPadTests;
 			productName = ActionPadTests;
-			productReference = F10002 /* ActionPadTests.xctest */;
+			productReference = FF0002FF0002FF0002FF0002 /* ActionPadTests.xctest */;
 			productType = "com.apple.product-type.bundle.unit-test";
 		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
-		D10001 /* Project object */ = {
+		DD0001DD0001DD0001DD0001 /* Project object */ = {
 			isa = PBXProject;
 			attributes = {
 				BuildIndependentTargetsInParallel = 1;
 				LastSwiftUpdateCheck = 1500;
 				LastUpgradeCheck = 1500;
 				TargetAttributes = {
-					E10001 = {
+					EE0001EE0001EE0001EE0001 = {
 						CreatedOnToolsVersion = 15.0;
 					};
-					E10002 = {
+					EE0002EE0002EE0002EE0002 = {
 						CreatedOnToolsVersion = 15.0;
-						TestTargetID = E10001;
+						TestTargetID = EE0001EE0001EE0001EE0001;
 					};
 				};
 			};
-			buildConfigurationList = J10001;
+			buildConfigurationList = JJ0001JJ0001JJ0001JJ0001;
 			compatibilityVersion = "Xcode 14.0";
 			developmentRegion = en;
 			hasScannedForEncodings = 0;
@@ -214,68 +214,68 @@
 				en,
 				Base,
 			);
-			mainGroup = H10001;
-			productRefGroup = H10008 /* Products */;
+			mainGroup = HH0001HH0001HH0001HH0001;
+			productRefGroup = HH0008HH0008HH0008HH0008 /* Products */;
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
-				E10001 /* ActionPad */,
-				E10002 /* ActionPadTests */,
+				EE0001EE0001EE0001EE0001 /* ActionPad */,
+				EE0002EE0002EE0002EE0002 /* ActionPadTests */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
-		K10001 /* Resources */ = {
+		KK0001KK0001KK0001KK0001 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				A10012 /* Preview Assets.xcassets in Resources */,
-				A10011 /* Assets.xcassets in Resources */,
+				AA0012AA0012AA0012AA0012 /* Preview Assets.xcassets in Resources */,
+				AA0011AA0011AA0011AA0011 /* Assets.xcassets in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
-		I10001 /* Sources */ = {
+		II0001II0001II0001II0001 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				A10001 /* ActionPadApp.swift in Sources */,
-				A10002 /* ContentView.swift in Sources */,
-				A10003 /* ConfirmationView.swift in Sources */,
-				A10004 /* ActionIntent.swift in Sources */,
-				A10005 /* ParsedAction.swift in Sources */,
-				A10006 /* NLParser.swift in Sources */,
-				A10007 /* CalendarService.swift in Sources */,
-				A10008 /* ReminderService.swift in Sources */,
-				A10009 /* NotificationService.swift in Sources */,
-				A10010 /* ActionRouter.swift in Sources */,
+				AA0001AA0001AA0001AA0001 /* ActionPadApp.swift in Sources */,
+				AA0002AA0002AA0002AA0002 /* ContentView.swift in Sources */,
+				AA0003AA0003AA0003AA0003 /* ConfirmationView.swift in Sources */,
+				AA0004AA0004AA0004AA0004 /* ActionIntent.swift in Sources */,
+				AA0005AA0005AA0005AA0005 /* ParsedAction.swift in Sources */,
+				AA0006AA0006AA0006AA0006 /* NLParser.swift in Sources */,
+				AA0007AA0007AA0007AA0007 /* CalendarService.swift in Sources */,
+				AA0008AA0008AA0008AA0008 /* ReminderService.swift in Sources */,
+				AA0009AA0009AA0009AA0009 /* NotificationService.swift in Sources */,
+				AA0010AA0010AA0010AA0010 /* ActionRouter.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-		I10002 /* Sources */ = {
+		II0002II0002II0002II0002 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				A10020 /* NLParserTests.swift in Sources */,
-				A10021 /* ActionRouterTests.swift in Sources */,
+				AA0020AA0020AA0020AA0020 /* NLParserTests.swift in Sources */,
+				AA0021AA0021AA0021AA0021 /* ActionRouterTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
-		L10001 /* PBXTargetDependency */ = {
+		LL0001LL0001LL0001LL0001 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
-			target = E10001 /* ActionPad */;
-			targetProxy = C10001 /* PBXContainerItemProxy */;
+			target = EE0001EE0001EE0001EE0001 /* ActionPad */;
+			targetProxy = CC0001CC0001CC0001CC0001 /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
-		J10002 /* Debug */ = {
+		JJ0002JJ0002JJ0002JJ0002 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
@@ -337,7 +337,7 @@
 			};
 			name = Debug;
 		};
-		J10009 /* Release */ = {
+		JJ0009JJ0009JJ0009JJ0009 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
@@ -392,7 +392,7 @@
 			};
 			name = Release;
 		};
-		J10004 /* Debug */ = {
+		JJ0004JJ0004JJ0004JJ0004 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
@@ -421,7 +421,7 @@
 			};
 			name = Debug;
 		};
-		J10005 /* Release */ = {
+		JJ0005JJ0005JJ0005JJ0005 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
@@ -450,7 +450,7 @@
 			};
 			name = Release;
 		};
-		J10007 /* Debug */ = {
+		JJ0007JJ0007JJ0007JJ0007 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
@@ -468,7 +468,7 @@
 			};
 			name = Debug;
 		};
-		J10008 /* Release */ = {
+		JJ0008JJ0008JJ0008JJ0008 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
@@ -489,29 +489,29 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
-		J10001 /* Build configuration list for PBXProject "ActionPad" */ = {
+		JJ0001JJ0001JJ0001JJ0001 /* Build configuration list for PBXProject "ActionPad" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
-				J10002 /* Debug */,
-				J10009 /* Release */,
+				JJ0002JJ0002JJ0002JJ0002 /* Debug */,
+				JJ0009JJ0009JJ0009JJ0009 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		J10003 /* Build configuration list for PBXNativeTarget "ActionPad" */ = {
+		JJ0003JJ0003JJ0003JJ0003 /* Build configuration list for PBXNativeTarget "ActionPad" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
-				J10004 /* Debug */,
-				J10005 /* Release */,
+				JJ0004JJ0004JJ0004JJ0004 /* Debug */,
+				JJ0005JJ0005JJ0005JJ0005 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		J10006 /* Build configuration list for PBXNativeTarget "ActionPadTests" */ = {
+		JJ0006JJ0006JJ0006JJ0006 /* Build configuration list for PBXNativeTarget "ActionPadTests" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
-				J10007 /* Debug */,
-				J10008 /* Release */,
+				JJ0007JJ0007JJ0007JJ0007 /* Debug */,
+				JJ0008JJ0008JJ0008JJ0008 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
@@ -519,5 +519,5 @@
 /* End XCConfigurationList section */
 
 	};
-	rootObject = D10001 /* Project object */;
+	rootObject = DD0001DD0001DD0001DD0001 /* Project object */;
 }

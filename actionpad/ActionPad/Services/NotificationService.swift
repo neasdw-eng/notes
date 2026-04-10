@@ -4,8 +4,14 @@ class NotificationService {
 
     func scheduleNotification(title: String, body: String, date: Date?) async throws {
         let center = UNUserNotificationCenter.current()
-        let granted = try await center.requestAuthorization(options: [.alert, .sound, .badge])
-        guard granted else { return }
+        let settings = await center.notificationSettings()
+
+        if settings.authorizationStatus == .notDetermined {
+            let granted = try await center.requestAuthorization(options: [.alert, .sound, .badge])
+            guard granted else { throw ActionError.notificationsDenied }
+        } else if settings.authorizationStatus == .denied {
+            throw ActionError.notificationsDenied
+        }
 
         let content = UNMutableNotificationContent()
         content.title = title

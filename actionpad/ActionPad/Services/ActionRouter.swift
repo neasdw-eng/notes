@@ -1,13 +1,34 @@
 import Foundation
+import EventKit
 
-class ActionRouter {
-    private let parser = NLParser()
-    private let calendarService = CalendarService()
-    private let reminderService = ReminderService()
+class ActionRouter: ObservableObject {
+    let parser = NLParser()
+    private let store = EKEventStore()
+    private lazy var calendarService = CalendarService(store: store)
+    private lazy var reminderService = ReminderService(store: store)
     private let notificationService = NotificationService()
+
+    private static let dateFormatter: DateFormatter = {
+        let f = DateFormatter()
+        return f
+    }()
+
+    /// Preview what action would be taken without executing it
+    func preview(_ text: String) -> ParsedAction {
+        return parser.parse(text)
+    }
 
     func process(_ text: String) async -> ActionResult {
         let parsed = parser.parse(text)
+
+        if parsed.isUnparseable {
+            return ActionResult(
+                success: false,
+                intent: .notification,
+                title: parsed.title,
+                message: "Couldn't figure out what to do with this. Try something like \"remind me to call mom tomorrow\" or \"meeting at 3pm Friday\"."
+            )
+        }
 
         switch parsed.intent {
         case .calendarEvent:
@@ -23,7 +44,20 @@ class ActionRouter {
 
     private func handleCalendarEvent(_ action: ParsedAction) async -> ActionResult {
         guard let date = action.date else {
-            return await fallbackToNotification(action, reason: "No date detected")
+            // No date for calendar event - create as reminder instead (more useful than notification)
+            do {
+                let success = try await reminderService.createReminder(title: action.title, dueDate: nil)
+                if success {
+                    return ActionResult(
+                        success: true,
+                        intent: .reminder,
+                        title: action.title,
+                        message: "No date found, so created a reminder instead.",
+                        isFallback: true
+                    )
+                }
+            } catch {}
+            return await fallbackToNotification(action, reason: "No date detected and reminders unavailable")
         }
 
         do {
@@ -33,17 +67,17 @@ class ActionRouter {
                 endDate: action.endDate
             )
             if success {
-                let formatted = formatDate(date)
                 return ActionResult(
                     success: true,
                     intent: .calendarEvent,
-                    message: "Calendar event created for \(formatted)"
+                    title: action.title,
+                    message: "Event added for \(formatDate(date))"
                 )
             } else {
                 return await fallbackToNotification(action, reason: "Calendar access denied")
             }
         } catch {
-            return await fallbackToNotification(action, reason: "Calendar error")
+            return await fallbackToNotification(action, reason: error.localizedDescription)
         }
     }
 
@@ -58,41 +92,75 @@ class ActionRouter {
                 return ActionResult(
                     success: true,
                     intent: .reminder,
-                    message: "Reminder set: \(action.title) (\(dateStr))"
+                    title: action.title,
+                    message: "Due: \(dateStr)"
                 )
             } else {
                 return await fallbackToNotification(action, reason: "Reminders access denied")
             }
         } catch {
-            return await fallbackToNotification(action, reason: "Reminders error")
+            return await fallbackToNotification(action, reason: error.localizedDescription)
         }
     }
 
     private func handleAlarm(_ action: ParsedAction) async -> ActionResult {
-        // iOS doesn't allow programmatic alarm creation in Clock app
-        // Fall back to a timed notification
+        // iOS doesn't allow programmatic alarm creation - use reminder with alarm as best alternative
+        if let date = action.date {
+            do {
+                let success = try await reminderService.createReminder(title: action.title, dueDate: date)
+                if success {
+                    return ActionResult(
+                        success: true,
+                        intent: .reminder,
+                        title: action.title,
+                        message: "Set as reminder with alert for \(formatDate(date)) (iOS doesn't allow direct alarm creation)",
+                        isFallback: true
+                    )
+                }
+            } catch {}
+        }
+
+        // Fall back to notification
         do {
             try await notificationService.scheduleNotification(
-                title: "Alarm: \(action.title)",
+                title: action.title,
                 body: action.originalText,
                 date: action.date
             )
             let dateStr = action.date.map { formatDate($0) } ?? "now"
             return ActionResult(
                 success: true,
-                intent: .alarm,
-                message: "Notification scheduled for \(dateStr) (iOS doesn't allow direct alarm creation)"
+                intent: .notification,
+                title: action.title,
+                message: "Notification scheduled for \(dateStr) (iOS doesn't allow direct alarm creation)",
+                isFallback: true
             )
         } catch {
             return ActionResult(
                 success: false,
                 intent: .alarm,
-                message: "Failed to schedule alarm notification"
+                title: action.title,
+                message: "Could not set alarm, reminder, or notification: \(error.localizedDescription)"
             )
         }
     }
 
     private func handleNotification(_ action: ParsedAction) async -> ActionResult {
+        // If we have a date, try reminder first (more persistent than a notification)
+        if let date = action.date {
+            do {
+                let success = try await reminderService.createReminder(title: action.title, dueDate: date)
+                if success {
+                    return ActionResult(
+                        success: true,
+                        intent: .reminder,
+                        title: action.title,
+                        message: "Due: \(formatDate(date))"
+                    )
+                }
+            } catch {}
+        }
+
         do {
             try await notificationService.scheduleNotification(
                 title: action.title,
@@ -103,13 +171,15 @@ class ActionRouter {
             return ActionResult(
                 success: true,
                 intent: .notification,
+                title: action.title,
                 message: "Notification \(dateStr)"
             )
         } catch {
             return ActionResult(
                 success: false,
                 intent: .notification,
-                message: "Failed to send notification"
+                title: action.title,
+                message: "Failed: \(error.localizedDescription)"
             )
         }
     }
@@ -125,19 +195,22 @@ class ActionRouter {
             return ActionResult(
                 success: true,
                 intent: .notification,
-                message: "\(reason). Notification scheduled instead (\(dateStr))"
+                title: action.title,
+                message: "\(reason). Notification scheduled instead (\(dateStr)).",
+                isFallback: true
             )
         } catch {
             return ActionResult(
                 success: false,
                 intent: .notification,
-                message: "\(reason). Failed to send fallback notification."
+                title: action.title,
+                message: "\(reason). Also failed to send notification: \(error.localizedDescription)"
             )
         }
     }
 
     private func formatDate(_ date: Date) -> String {
-        let formatter = DateFormatter()
+        let formatter = Self.dateFormatter
         let calendar = Calendar.current
 
         if calendar.isDateInToday(date) {
@@ -145,7 +218,7 @@ class ActionRouter {
         } else if calendar.isDateInTomorrow(date) {
             formatter.dateFormat = "h:mm a 'tomorrow'"
         } else {
-            formatter.dateFormat = "MMM d, h:mm a"
+            formatter.dateFormat = "EEE, MMM d 'at' h:mm a"
         }
 
         return formatter.string(from: date)

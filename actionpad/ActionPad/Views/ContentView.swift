@@ -1,18 +1,20 @@
 import SwiftUI
 
 struct ContentView: View {
+    @StateObject private var router = ActionRouter()
     @State private var inputText = ""
     @State private var isProcessing = false
     @State private var result: ActionResult?
-    @State private var showResult = false
+    @State private var detectedIntent: ActionIntent?
     @FocusState private var isTextFocused: Bool
-
-    private let router = ActionRouter()
 
     var body: some View {
         ZStack {
             Color(.systemBackground)
                 .ignoresSafeArea()
+                .onTapGesture {
+                    isTextFocused = false
+                }
 
             VStack(spacing: 0) {
                 // Header
@@ -38,7 +40,7 @@ struct ContentView: View {
                     .padding(.horizontal)
                     .overlay(alignment: .topLeading) {
                         if inputText.isEmpty {
-                            Text("Type anything... \"remind me to call mom tomorrow\", \"meeting at 3pm Friday\"")
+                            Text("What do you need to do?\n\"remind me to call mom tomorrow\"\n\"meeting at 3pm Friday\"\n\"buy groceries\"")
                                 .font(.body)
                                 .foregroundStyle(.tertiary)
                                 .padding(.horizontal, 28)
@@ -46,6 +48,27 @@ struct ContentView: View {
                                 .allowsHitTesting(false)
                         }
                     }
+                    .onChange(of: inputText) { _ in
+                        updatePreview()
+                    }
+
+                // Intent preview chip
+                if let intent = detectedIntent, !inputText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                    HStack(spacing: 6) {
+                        Image(systemName: intent.iconName)
+                            .font(.caption)
+                        Text("Will create: \(intent.displayName)")
+                            .font(.caption)
+                    }
+                    .foregroundStyle(.secondary)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 6)
+                    .background(Color(.tertiarySystemBackground))
+                    .clipShape(Capsule())
+                    .padding(.top, 8)
+                    .transition(.opacity)
+                    .animation(.easeInOut(duration: 0.2), value: detectedIntent)
+                }
 
                 // Send button
                 Button {
@@ -63,29 +86,42 @@ struct ContentView: View {
                     }
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 14)
-                    .background(inputText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || isProcessing
-                        ? Color.accentColor.opacity(0.4)
-                        : Color.accentColor)
+                    .background(canSend ? Color.accentColor : Color.accentColor.opacity(0.4))
                     .foregroundStyle(.white)
                     .clipShape(RoundedRectangle(cornerRadius: 12))
                 }
-                .disabled(inputText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || isProcessing)
+                .disabled(!canSend)
                 .padding()
             }
         }
         .onAppear {
             isTextFocused = true
         }
-        .sheet(isPresented: $showResult) {
-            if let result = result {
-                ConfirmationView(result: result) {
-                    showResult = false
-                    inputText = ""
+        .sheet(item: $result) { res in
+            ConfirmationView(result: res) {
+                result = nil
+                inputText = ""
+                detectedIntent = nil
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
                     isTextFocused = true
                 }
-                .presentationDetents([.fraction(0.35)])
             }
+            .presentationDetents([.fraction(0.4), .medium])
         }
+    }
+
+    private var canSend: Bool {
+        !inputText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && !isProcessing
+    }
+
+    private func updatePreview() {
+        let text = inputText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !text.isEmpty else {
+            detectedIntent = nil
+            return
+        }
+        let preview = router.preview(text)
+        detectedIntent = preview.isUnparseable ? nil : preview.intent
     }
 
     private func send() {
@@ -93,13 +129,13 @@ struct ContentView: View {
         guard !text.isEmpty else { return }
 
         isProcessing = true
+        isTextFocused = false
 
         Task {
             let actionResult = await router.process(text)
             await MainActor.run {
                 result = actionResult
                 isProcessing = false
-                showResult = true
             }
         }
     }

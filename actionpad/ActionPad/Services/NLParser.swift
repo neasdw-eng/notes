@@ -2,55 +2,110 @@ import Foundation
 
 class NLParser {
 
+    // Cached detector - NSDataDetector is expensive to create
+    private let dateDetector: NSDataDetector? = {
+        try? NSDataDetector(types: NSTextCheckingResult.CheckingType.date.rawValue)
+    }()
+
+    // Calendar keywords - events with a specific time/date on the calendar
     private let calendarKeywords = [
         "meeting", "appointment", "schedule", "event", "conference",
         "call with", "lunch with", "dinner with", "breakfast with",
         "expecting", "shipment", "delivery", "arriving", "flight",
-        "interview", "reservation", "booked", "booking"
+        "interview", "reservation", "booked", "booking",
+        "class", "lesson", "course", "party", "wedding", "birthday party",
+        "concert", "show", "game"
     ]
 
+    // Reminder keywords - tasks/to-dos the user needs to do
+    // Includes both straight and smart apostrophe variants
     private let reminderKeywords = [
-        "remind", "remember", "don't forget", "dont forget",
-        "pick up", "take medication", "take meds", "buy",
+        "remind", "remember",
+        "don't forget", "don\u{2019}t forget",
+        "dont forget",
+        "pick up", "take out", "call",
+        "take medication", "take meds", "buy", "pay",
         "get groceries", "need to", "gotta", "have to",
-        "make sure", "follow up", "check on"
+        "make sure", "follow up", "check on",
+        "submit", "send", "return", "cancel",
+        "clean", "wash", "fix", "order", "book"
     ]
 
+    // Alarm keywords
     private let alarmKeywords = [
-        "alarm", "wake up", "wake me"
+        "alarm", "wake up", "wake me up", "wake me"
     ]
+
+    // Phrases to strip from extracted title (longest first to avoid partial matches)
+    private let phrasesToRemove = [
+        "remind me to", "remind me",
+        "remember to",
+        "don't forget to", "don\u{2019}t forget to",
+        "dont forget to",
+        "don't forget", "don\u{2019}t forget",
+        "dont forget",
+        "set a reminder to", "set reminder to",
+        "set a reminder", "set reminder",
+        "schedule a", "schedule an", "schedule",
+        "create a", "create an",
+        "set an alarm for", "set alarm for", "set an alarm", "set alarm",
+        "wake me up at", "wake me up", "wake me at", "wake me",
+        "i need to", "i have to", "i gotta", "i have a", "i have an",
+        "make sure to", "make sure i",
+        "need to", "gotta", "have to",
+        "expecting a", "expecting"
+    ]
+
+    // Dangling prepositions to clean up after date removal
+    private let danglingPrepositions = ["on", "at", "by", "for", "in", "from", "until", "till", "before", "after", "every"]
 
     func parse(_ text: String) -> ParsedAction {
-        let lowered = text.lowercased().trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else {
+            return ParsedAction(intent: .notification, title: "", date: nil, originalText: text, isUnparseable: true)
+        }
 
-        let intent = classifyIntent(lowered)
-        let (date, dateRange) = extractDate(from: text)
-        let title = extractTitle(from: text, dateRange: dateRange, intent: intent)
+        let lowered = trimmed.lowercased()
+
+        // Extract date first (used by both classifier and result)
+        let (rawDate, dateRange) = extractDate(from: trimmed)
+
+        // Bump past dates to the future
+        let date = rawDate.flatMap { bumpDateIfPast($0) }
+
+        let intent = classifyIntent(lowered, hasDate: date != nil)
+        let title = extractTitle(from: trimmed, dateRange: dateRange)
+
+        // If no keyword matched and no date found, mark as unparseable
+        let isUnparseable = (intent == .notification && date == nil)
 
         return ParsedAction(
             intent: intent,
             title: title,
             date: date,
-            endDate: nil,
-            originalText: text
+            originalText: text,
+            isUnparseable: isUnparseable
         )
     }
 
-    private func classifyIntent(_ text: String) -> ActionIntent {
-        // Check in priority order: reminder > calendar > alarm > notification
-        for keyword in reminderKeywords {
-            if text.contains(keyword) { return .reminder }
-        }
+    private func classifyIntent(_ text: String, hasDate: Bool) -> ActionIntent {
+        // Check alarm first (most specific)
         for keyword in alarmKeywords {
             if text.contains(keyword) { return .alarm }
         }
+
+        // Check calendar keywords before reminder, so "meeting" etc. are events not reminders
         for keyword in calendarKeywords {
             if text.contains(keyword) { return .calendarEvent }
         }
 
+        // Check reminder keywords
+        for keyword in reminderKeywords {
+            if text.contains(keyword) { return .reminder }
+        }
+
         // If a date is detected but no keyword matched, default to reminder
-        let (date, _) = extractDate(from: text)
-        if date != nil {
+        if hasDate {
             return .reminder
         }
 
@@ -58,9 +113,7 @@ class NLParser {
     }
 
     private func extractDate(from text: String) -> (Date?, Range<String.Index>?) {
-        guard let detector = try? NSDataDetector(types: NSTextCheckingResult.CheckingType.date.rawValue) else {
-            return (nil, nil)
-        }
+        guard let detector = dateDetector else { return (nil, nil) }
 
         let nsRange = NSRange(text.startIndex..., in: text)
         let matches = detector.matches(in: text, options: [], range: nsRange)
@@ -73,7 +126,33 @@ class NLParser {
         return (date, range)
     }
 
-    private func extractTitle(from text: String, dateRange: Range<String.Index>?, intent: ActionIntent) -> String {
+    /// Bumps a date to the future if it's in the past.
+    /// For times today that have passed, moves to tomorrow.
+    /// For dates that have passed this month, moves to next month (for day-only like "the 13th").
+    private func bumpDateIfPast(_ date: Date) -> Date {
+        let now = Date()
+        guard date < now else { return date }
+
+        let calendar = Calendar.current
+
+        // If the date is today but the time has passed, bump to tomorrow same time
+        if calendar.isDateInToday(date) {
+            return calendar.date(byAdding: .day, value: 1, to: date) ?? date
+        }
+
+        // If the date is earlier this week/month, bump by a reasonable amount
+        let components = calendar.dateComponents([.hour, .minute], from: date)
+        if components.hour == 0 && components.minute == 0 {
+            // Date-only (no specific time) - bump to next occurrence
+            // e.g., "the 13th" when today is the 15th -> next month's 13th
+            return calendar.date(byAdding: .month, value: 1, to: date) ?? date
+        }
+
+        // Time-specific past date - bump by 1 day
+        return calendar.date(byAdding: .day, value: 1, to: date) ?? date
+    }
+
+    private func extractTitle(from text: String, dateRange: Range<String.Index>?) -> String {
         var cleaned = text
 
         // Remove the date substring if found
@@ -81,29 +160,17 @@ class NLParser {
             cleaned = cleaned.replacingCharacters(in: range, with: "")
         }
 
-        // Remove common intent phrases
-        let phrasesToRemove = [
-            "remind me to", "remind me", "remember to", "don't forget to",
-            "dont forget to", "set a reminder to", "set reminder to",
-            "schedule a", "schedule an", "schedule", "create a", "create an",
-            "set an alarm for", "set alarm for", "set an alarm", "set alarm",
-            "wake me up at", "wake me up", "wake me at", "wake me",
-            "i need to", "i have to", "i gotta", "i have a", "i have an",
-            "make sure to", "make sure i", "need to", "gotta",
-            "expecting a", "expecting"
-        ]
+        // Remove dangling prepositions left behind after date removal
+        cleaned = removeDanglingPrepositions(cleaned)
 
-        let lowered = cleaned.lowercased()
-        for phrase in phrasesToRemove {
-            if let range = lowered.range(of: phrase) {
-                let startIdx = cleaned.index(cleaned.startIndex, offsetBy: lowered.distance(from: lowered.startIndex, to: range.lowerBound))
-                let endIdx = cleaned.index(cleaned.startIndex, offsetBy: lowered.distance(from: lowered.startIndex, to: range.upperBound))
-                cleaned = cleaned.replacingCharacters(in: startIdx..<endIdx, with: "")
-            }
-        }
+        // Remove common intent phrases (case-insensitive, using range-based replacement)
+        cleaned = removeIntentPhrases(cleaned)
 
         // Clean up whitespace and punctuation
         cleaned = cleaned
+            .components(separatedBy: .whitespacesAndNewlines)
+            .filter { !$0.isEmpty }
+            .joined(separator: " ")
             .trimmingCharacters(in: .whitespacesAndNewlines)
             .trimmingCharacters(in: .punctuationCharacters)
             .trimmingCharacters(in: .whitespacesAndNewlines)
@@ -115,5 +182,27 @@ class NLParser {
 
         // Capitalize first letter
         return cleaned.prefix(1).uppercased() + cleaned.dropFirst()
+    }
+
+    /// Safe case-insensitive phrase removal that avoids String index crashes
+    private func removeIntentPhrases(_ text: String) -> String {
+        var result = text
+        for phrase in phrasesToRemove {
+            if let range = result.range(of: phrase, options: [.caseInsensitive, .diacriticInsensitive]) {
+                result.replaceSubrange(range, with: "")
+            }
+        }
+        return result
+    }
+
+    /// Remove trailing prepositions that dangle after date removal
+    /// e.g., "flight to NYC on " -> "flight to NYC"
+    private func removeDanglingPrepositions(_ text: String) -> String {
+        var words = text.components(separatedBy: .whitespacesAndNewlines).filter { !$0.isEmpty }
+        // Remove trailing dangling prepositions
+        while let last = words.last, danglingPrepositions.contains(last.lowercased()) {
+            words.removeLast()
+        }
+        return words.joined(separator: " ")
     }
 }

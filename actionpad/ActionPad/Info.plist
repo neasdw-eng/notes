@@ -4,7 +4,11 @@
 <dict>
 	<key>NSCalendarsUsageDescription</key>
 	<string>ActionPad needs calendar access to create events from your messages.</string>
+	<key>NSCalendarsFullAccessUsageDescription</key>
+	<string>ActionPad needs calendar access to create events from your messages.</string>
 	<key>NSRemindersUsageDescription</key>
+	<string>ActionPad needs reminders access to set reminders from your messages.</string>
+	<key>NSRemindersFullAccessUsageDescription</key>
 	<string>ActionPad needs reminders access to set reminders from your messages.</string>
 </dict>
 </plist>
